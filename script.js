@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Отрисовка доски ---
-    function renderBoard() {
+        function renderBoard() {
         boardElement.innerHTML = ''; // Очищаем старое поле
         if (!userGrid || userGrid.length !== 9) {
              console.error("Некорректные данные для отрисовки доски (userGrid)");
@@ -54,33 +54,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.dataset.row = r;
                 cell.dataset.col = c;
 
-                const value = userGrid[r][c]; // Значение из нашего массива
+                // ... (код для установки значения и класса 'given') ...
 
-                // === ВАЖНО: Отображаем цифры и отмечаем начальные ===
-                if (value !== 0) {
-                    cell.textContent = value; // Показываем цифру
-                    // Является ли эта цифра частью изначальной головоломки?
-                    const puzzleChar = currentPuzzle[r * 9 + c];
-                    if (puzzleChar !== '.' && puzzleChar !== '0') {
-                        cell.classList.add('given'); // Добавляем класс для стилизации
-                    }
-                } else {
-                    cell.textContent = ''; // Оставляем пустым, если значение 0
-                }
-                // =====================================================
-
-                // === ВРЕМЕННО ЗАКОММЕНТИРОВАННЫЙ БЛОК ДЛЯ ГРАНИЦ ===
-                // Пока не решим проблему с отображением границ
-                /*
+                // === РАСКОММЕНТИРУЙТЕ ЭТОТ БЛОК ===
+                // Убираем классы с предыдущей отрисовки на всякий случай
                 cell.classList.remove('thick-border-bottom', 'thick-border-right');
-                if ((c + 1) % 3 === 0 && c < 8) {
+                // Добавляем класс для толстой правой границы (3 и 6 колонки)
+                if ((c + 1) % 3 === 0 && c < 8) { // c < 8 чтобы не трогать внешнюю границу
                     cell.classList.add('thick-border-right');
                 }
-                if ((r + 1) % 3 === 0 && r < 8) {
+                // Добавляем класс для толстой нижней границы (3 и 6 ряды)
+                if ((r + 1) % 3 === 0 && r < 8) { // r < 8 чтобы не трогать внешнюю границу
                     cell.classList.add('thick-border-bottom');
                 }
-                */
-                // ==================================================
+                // =====================================
 
                 boardElement.appendChild(cell); // Добавляем ячейку на доску
             }
