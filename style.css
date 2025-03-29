@@ -17,46 +17,74 @@ h1 {
     color: #333;
 }
 
+/* --- Убедитесь, что эти стили есть и они не переопределены ниже --- */
+
 #sudoku-board {
     display: grid;
-    grid-template-columns: repeat(9, minmax(30px, 10vw)); /* Адаптивные колонки */
-    grid-template-rows: repeat(9, minmax(30px, 10vw));    /* Адаптивные строки */
-    width: clamp(270px, 90vw, 500px); /* Ограничение ширины поля */
-    height: clamp(270px, 90vw, 500px); /* Ограничение высоты поля */
+    grid-template-columns: repeat(9, minmax(30px, 10vw));
+    grid-template-rows: repeat(9, minmax(30px, 10vw));
+    width: clamp(270px, 90vw, 500px);
+    height: clamp(270px, 90vw, 500px);
+    /* Толстая внешняя рамка всей доски */
     border: 3px solid black;
     margin-bottom: 15px;
     background-color: white;
+    /* Добавим overflow: hidden на всякий случай, хотя не должно быть нужно */
+    overflow: hidden;
 }
 
 .cell {
     display: flex;
     justify-content: center;
     align-items: center;
+    /* === БАЗОВАЯ ГРАНИЦА КАЖДОЙ ЯЧЕЙКИ === */
+    /* Ставим тонкую серую границу со всех сторон по умолчанию */
     border: 1px solid #ccc;
-    font-size: clamp(16px, 5vw, 24px); /* Адаптивный размер шрифта */
+    /* ==================================== */
+    font-size: clamp(16px, 5vw, 24px);
     cursor: pointer;
-    position: relative; /* Для толстых линий */
-    box-sizing: border-box; /* Учитывать рамки в размере */
-    /* Предотвращение выделения текста */
+    box-sizing: border-box; /* Важно, чтобы border включался в размер */
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    position: relative; /* Может понадобиться для псевдоэлементов, если использовать их */
 }
 
-/* Стиль для данных изначальной головоломки */
+/* Убираем лишние внутренние границы, чтобы не было "двойных" линий */
+/* Убираем верхнюю границу у всех, кроме первого ряда */
+.cell:nth-child(n+10) { /* Все ячейки начиная с 10-й (второй ряд) */
+    border-top: none;
+}
+/* Убираем левую границу у всех, кроме первого столбца */
+.cell:not(:nth-child(9n+1)) { /* Все ячейки, НЕ являющиеся первой в ряду (9n+1) */
+    border-left: none;
+}
+
+
+/* === ТОЛСТЫЕ ЛИНИИ ДЛЯ БЛОКОВ === */
+/* Эти классы добавляются через JavaScript */
+
+.thick-border-bottom {
+     /* Используем border-bottom, чтобы переопределить `border: none` от правил выше */
+     border-bottom: 2px solid black !important;
+}
+.thick-border-right {
+     /* Используем border-right */
+     border-right: 2px solid black !important;
+}
+/* ================================= */
+
+
+/* Стили для .given, .selected, .incorrect остаются как были */
 .cell.given {
     font-weight: bold;
     background-color: #eee;
     cursor: default;
 }
-
-/* Стиль для выбранной ячейки */
 .cell.selected {
     background-color: #a7d8ff;
 }
-
-/* Стиль для неверно заполненных ячеек */
 .cell.incorrect {
     background-color: #ffdddd;
     color: red;
