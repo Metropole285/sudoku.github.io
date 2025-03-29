@@ -1,101 +1,149 @@
-/* Стили body и score-container оставляем как были */
 body {
-    margin: 0;
-    padding: 0;
-    background-color: white;
-    height: 100vh;
-    overflow: hidden;
-    position: relative;
     font-family: sans-serif;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
     align-items: center;
+    margin: 0;
+    padding: 10px;
+    background-color: #f0f0f0;
+    touch-action: manipulation; /* Предотвращает зум по двойному тапу на мобильных */
+    min-height: 100vh;
     box-sizing: border-box;
-    /* Добавляем для позиционирования popup-container */
-    perspective: 500px; /* Для 3D эффектов, если захочется */
 }
 
-#click-button {
-    position: absolute;
-    bottom: 20vh;
-    left: 10vw;
-    right: 10vw;
-    height: 15vh;
+h1 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+#sudoku-board {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(30px, 10vw)); /* Адаптивные колонки */
+    grid-template-rows: repeat(9, minmax(30px, 10vw));    /* Адаптивные строки */
+    width: clamp(270px, 90vw, 500px); /* Ограничение ширины поля */
+    height: clamp(270px, 90vw, 500px); /* Ограничение высоты поля */
+    border: 3px solid black;
+    margin-bottom: 15px;
+    background-color: white;
+}
+
+.cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #ccc;
+    font-size: clamp(16px, 5vw, 24px); /* Адаптивный размер шрифта */
+    cursor: pointer;
+    position: relative; /* Для толстых линий */
+    box-sizing: border-box; /* Учитывать рамки в размере */
+    /* Предотвращение выделения текста */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Стиль для данных изначальной головоломки */
+.cell.given {
+    font-weight: bold;
+    background-color: #eee;
+    cursor: default;
+}
+
+/* Стиль для выбранной ячейки */
+.cell.selected {
+    background-color: #a7d8ff;
+}
+
+/* Стиль для неверно заполненных ячеек */
+.cell.incorrect {
+    background-color: #ffdddd;
+    color: red;
+}
+
+
+/* Толстые линии для 3x3 блоков */
+.cell:nth-child(3n) {
+    border-right: 2px solid black;
+}
+.cell:nth-child(9n) { /* Убираем двойную границу справа */
+     border-right: 1px solid #ccc;
+}
+/* Придется добавить классы для нижних границ через JS */
+.thick-border-bottom {
+     border-bottom: 2px solid black !important; /* !important чтобы перебить стандартный border */
+}
+.thick-border-right {
+     border-right: 2px solid black !important;
+}
+
+
+#controls {
+    display: flex;
+    gap: 10px; /* Пространство между кнопками */
+    margin-bottom: 15px;
+}
+
+#controls button {
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
     background-color: #007bff;
     color: white;
-    font-size: 5vh;
-    border: none;
-    border-radius: 10px;
+    transition: background-color 0.2s;
+}
+
+#controls button:hover {
+    background-color: #0056b3;
+}
+#controls button:active {
+    background-color: #004085;
+}
+
+#status-message {
+    margin-top: 5px;
+    font-size: 16px;
+    min-height: 20px; /* Резервируем место */
+    font-weight: bold;
+}
+.correct { color: green; }
+.incorrect-msg { color: red; } /* Для текстового сообщения */
+
+
+/* Стили для цифровой панели */
+#numpad {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 5 кнопок в ряд */
+    gap: 5px;
+    margin-top: 10px;
+    width: clamp(270px, 90vw, 350px); /* Ограничение ширины панели */
+}
+
+#numpad button {
+    padding: 10px 0; /* Вертикальный паддинг */
+    font-size: 18px;
     cursor: pointer;
-    font-weight: bold;
-    -webkit-tap-highlight-color: transparent;
-    transition: transform 0.1s ease-out, background-color 0.1s ease-out; /* Плавный переход для анимации */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    transition: background-color 0.2s;
+    -webkit-tap-highlight-color: transparent; /* Убираем подсветку на мобильных */
 }
 
-#click-button:focus {
-    outline: none;
+#numpad button:hover {
+    background-color: #eee;
+}
+#numpad button:active {
+    background-color: #ddd;
 }
 
-/* Анимация нажатия */
-#click-button:active {
-    transform: scale(0.95); /* Чуть уменьшаем кнопку */
-    background-color: #0056b3; /* Делаем темнее */
+#numpad #erase-button {
+    grid-column: span 2; /* Растягиваем кнопку "Стереть" */
+    background-color: #ffc107; /* Желтый цвет */
 }
-
-#score-container {
-    position: absolute;
-    bottom: 45vh; /* 20vh (button bottom) + 15vh (button height) + 10vh (margin) */
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 4vh;
-    color: #333;
-    text-align: center;
-    width: 80%;
-    /* Делаем текст невыделяемым */
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-}
-
-/* --- Стили для всплывающего "+1" --- */
-#popup-container {
-    position: absolute;
-    bottom: 35vh; /* Примерно над кнопкой */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 50px; /* Ширина контейнера не так важна */
-    height: 50px; /* Высота тоже */
-    pointer-events: none; /* Чтобы не мешал нажимать кнопку */
-    z-index: 10;
-}
-
-.score-popup {
-    position: absolute;
-    bottom: 0; /* Начинаем от низа контейнера */
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 3vh;
-    font-weight: bold;
-    color: #28a745; /* Зеленый цвет */
-    opacity: 1;
-    animation: flyUp 0.8s ease-out forwards;
-    /* Делаем текст невыделяемым */
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-}
-
-/* Анимация полета вверх и исчезновения */
-@keyframes flyUp {
-    0% {
-        transform: translate(-50%, 0);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(-50%, -80px); /* Улетает вверх на 80px */
-        opacity: 0;
-    }
+#numpad #erase-button:hover {
+    background-color: #e0a800;
 }
