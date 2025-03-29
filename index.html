@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Кликер</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Важно для взаимодействия с Telegram -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+    <!-- Контейнер для всплывающих очков -->
+    <div id="popup-container"></div>
+
     <div id="score-container">
         Нажато: <span id="score">0</span> раз
     </div>
+
     <button id="click-button">ЖМИ!</button>
 
     <script src="script.js"></script>
