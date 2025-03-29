@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Отрисовка поля ---
     function renderBoard() {
-        boardElement.innerHTML = ''; // Очищаем старое поле
+        boardElement.innerHTML = '';
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
                 const cell = document.createElement('div');
@@ -47,24 +47,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.dataset.row = r;
                 cell.dataset.col = c;
 
-                const value = userGrid[r][c];
-                if (value !== 0) { // Если есть цифра (изначальная или введенная)
-                    cell.textContent = value;
-                    // Отмечаем изначальные цифры
-                    if (currentPuzzle[r * 9 + c] !== '.' && currentPuzzle[r * 9 + c] !== '0') {
-                         cell.classList.add('given');
-                    }
-                } else {
-                    cell.textContent = ''; // Пустая ячейка
-                }
+                // ... (код для установки значения и класса 'given') ...
 
-                // Добавляем классы для толстых линий
-                if ((c + 1) % 3 === 0 && c < 8) {
-                    cell.classList.add('thick-border-right');
-                }
-                if ((r + 1) % 3 === 0 && r < 8) {
-                    cell.classList.add('thick-border-bottom');
-                }
+                /* === ВРЕМЕННО УДАЛИТЕ ИЛИ ЗАКОММЕНТИРУЙТЕ ЭТОТ БЛОК ===
+                // cell.classList.remove('thick-border-bottom', 'thick-border-right');
+                // if ((c + 1) % 3 === 0 && c < 8) {
+                //     cell.classList.add('thick-border-right');
+                // }
+                // if ((r + 1) % 3 === 0 && r < 8) {
+                //     cell.classList.add('thick-border-bottom');
+                // }
+                */ // ====================================================
 
                 boardElement.appendChild(cell);
             }
