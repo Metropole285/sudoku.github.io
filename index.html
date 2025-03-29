@@ -3,19 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Кликер</title>
+    <title>Судоку</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Подключаем библиотеку для генерации и решения Судоку -->
+    <!-- Используем готовую, т.к. писать свою - очень сложно -->
+    <!-- Источник: https://github.com/robatron/sudoku.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sudoku/1.0.4/sudoku.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <!-- Контейнер для всплывающих очков -->
-    <div id="popup-container"></div>
+    <h1>Судоку</h1>
 
-    <div id="score-container">
-        Нажато: <span id="score">0</span> раз
+    <div id="sudoku-board">
+        <!-- Ячейки будут сгенерированы JavaScript -->
     </div>
 
-    <button id="click-button">ЖМИ!</button>
+    <div id="controls">
+        <button id="check-button">Проверить</button>
+        <button id="new-game-button">Новая игра</button>
+        <!-- Для удаления цифры можно использовать Backspace/Delete на клавиатуре
+             или добавить цифровую панель ниже -->
+    </div>
+
+    <div id="status-message"></div>
+
+    <!-- Простой вариант цифровой панели (опционально) -->
+    <div id="numpad">
+        <button data-num="1">1</button>
+        <button data-num="2">2</button>
+        <button data-num="3">3</button>
+        <button data-num="4">4</button>
+        <button data-num="5">5</button>
+        <button data-num="6">6</button>
+        <button data-num="7">7</button>
+        <button data-num="8">8</button>
+        <button data-num="9">9</button>
+        <button id="erase-button">Стереть</button>
+    </div>
+
 
     <script src="script.js"></script>
 </body>
