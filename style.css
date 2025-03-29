@@ -1,0 +1,64 @@
+/* Убираем отступы и делаем фон белым */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    height: 100vh; /* Занимаем всю высоту экрана */
+    overflow: hidden; /* Убираем прокрутку */
+    position: relative; /* Для позиционирования дочерних элементов */
+    font-family: sans-serif; /* Просто для читаемости */
+    display: flex; /* Используем flex для упрощения позиционирования, хотя можно и absolute */
+    flex-direction: column;
+    justify-content: flex-end; /* Прижимаем элементы к низу */
+    align-items: center; /* Центрируем по горизонтали */
+    box-sizing: border-box; /* Чтобы padding/border не влияли на общую ширину/высоту */
+}
+
+#click-button {
+    /* Позиционирование */
+    position: absolute; /* Позиционируем относительно body */
+    bottom: 20vh; /* 20% от высоты экрана снизу */
+    left: 10vw;   /* 10% от ширины экрана слева */
+    right: 10vw;  /* 10% от ширины экрана справа */
+    /* Вместо left/right можно использовать width: 80vw; */
+
+    /* Размеры */
+    height: 15vh; /* 15% от высоты экрана */
+
+    /* Внешний вид */
+    background-color: #007bff; /* Синий цвет */
+    color: white;
+    font-size: 5vh; /* Размер шрифта относительно высоты экрана */
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    /* Убираем стандартное выделение при нажатии на мобильных */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Убираем синюю обводку при фокусе */
+#click-button:focus {
+    outline: none;
+}
+
+/* Стиль при нажатии (необязательно) */
+#click-button:active {
+    background-color: #0056b3;
+}
+
+
+#score-container {
+    /* Позиционирование */
+    position: absolute;
+    /* Рассчитываем позицию: низ кнопки (20vh) + высота кнопки (15vh) + отступ (10vh) = 45vh от низа */
+    bottom: 45vh;
+    left: 50%; /* Центрируем по горизонтали */
+    transform: translateX(-50%); /* Точное центрирование */
+
+    /* Внешний вид */
+    font-size: 4vh; /* Размер шрифта */
+    color: #333;
+    text-align: center;
+    width: 80%; /* Чтобы текст не вылезал за края */
+}
