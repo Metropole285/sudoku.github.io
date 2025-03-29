@@ -1,64 +1,101 @@
-/* Убираем отступы и делаем фон белым */
+/* Стили body и score-container оставляем как были */
 body {
     margin: 0;
     padding: 0;
     background-color: white;
-    height: 100vh; /* Занимаем всю высоту экрана */
-    overflow: hidden; /* Убираем прокрутку */
-    position: relative; /* Для позиционирования дочерних элементов */
-    font-family: sans-serif; /* Просто для читаемости */
-    display: flex; /* Используем flex для упрощения позиционирования, хотя можно и absolute */
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    font-family: sans-serif;
+    display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* Прижимаем элементы к низу */
-    align-items: center; /* Центрируем по горизонтали */
-    box-sizing: border-box; /* Чтобы padding/border не влияли на общую ширину/высоту */
+    justify-content: flex-end;
+    align-items: center;
+    box-sizing: border-box;
+    /* Добавляем для позиционирования popup-container */
+    perspective: 500px; /* Для 3D эффектов, если захочется */
 }
 
 #click-button {
-    /* Позиционирование */
-    position: absolute; /* Позиционируем относительно body */
-    bottom: 20vh; /* 20% от высоты экрана снизу */
-    left: 10vw;   /* 10% от ширины экрана слева */
-    right: 10vw;  /* 10% от ширины экрана справа */
-    /* Вместо left/right можно использовать width: 80vw; */
-
-    /* Размеры */
-    height: 15vh; /* 15% от высоты экрана */
-
-    /* Внешний вид */
-    background-color: #007bff; /* Синий цвет */
+    position: absolute;
+    bottom: 20vh;
+    left: 10vw;
+    right: 10vw;
+    height: 15vh;
+    background-color: #007bff;
     color: white;
-    font-size: 5vh; /* Размер шрифта относительно высоты экрана */
+    font-size: 5vh;
     border: none;
     border-radius: 10px;
     cursor: pointer;
     font-weight: bold;
-    /* Убираем стандартное выделение при нажатии на мобильных */
     -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s ease-out, background-color 0.1s ease-out; /* Плавный переход для анимации */
 }
 
-/* Убираем синюю обводку при фокусе */
 #click-button:focus {
     outline: none;
 }
 
-/* Стиль при нажатии (необязательно) */
+/* Анимация нажатия */
 #click-button:active {
-    background-color: #0056b3;
+    transform: scale(0.95); /* Чуть уменьшаем кнопку */
+    background-color: #0056b3; /* Делаем темнее */
 }
 
-
 #score-container {
-    /* Позиционирование */
     position: absolute;
-    /* Рассчитываем позицию: низ кнопки (20vh) + высота кнопки (15vh) + отступ (10vh) = 45vh от низа */
-    bottom: 45vh;
-    left: 50%; /* Центрируем по горизонтали */
-    transform: translateX(-50%); /* Точное центрирование */
-
-    /* Внешний вид */
-    font-size: 4vh; /* Размер шрифта */
+    bottom: 45vh; /* 20vh (button bottom) + 15vh (button height) + 10vh (margin) */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 4vh;
     color: #333;
     text-align: center;
-    width: 80%; /* Чтобы текст не вылезал за края */
+    width: 80%;
+    /* Делаем текст невыделяемым */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* --- Стили для всплывающего "+1" --- */
+#popup-container {
+    position: absolute;
+    bottom: 35vh; /* Примерно над кнопкой */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px; /* Ширина контейнера не так важна */
+    height: 50px; /* Высота тоже */
+    pointer-events: none; /* Чтобы не мешал нажимать кнопку */
+    z-index: 10;
+}
+
+.score-popup {
+    position: absolute;
+    bottom: 0; /* Начинаем от низа контейнера */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3vh;
+    font-weight: bold;
+    color: #28a745; /* Зеленый цвет */
+    opacity: 1;
+    animation: flyUp 0.8s ease-out forwards;
+    /* Делаем текст невыделяемым */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Анимация полета вверх и исчезновения */
+@keyframes flyUp {
+    0% {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -80px); /* Улетает вверх на 80px */
+        opacity: 0;
+    }
 }
