@@ -61,7 +61,10 @@ h1 {
 .cell-value-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; justify-content: center; align-items: center;
-    font-size: clamp(16px, 5vw, 24px); line-height: 1; font-weight: normal;
+    font-size: clamp(16px, 5vw, 24px); line-height: 1;
+    /* === ДОБАВЛЕНО ЗДЕСЬ: ВСЕ ЦИФРЫ ЖИРНЫЕ === */
+    font-weight: bold;
+    /* ======================================== */
 }
 .cell-notes-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -75,8 +78,8 @@ h1 {
 
 /* --- Стили для состояний ячеек (ИСПРАВЛЕН ПОРЯДОК) --- */
 
-/* 1. Базовый вид "given" ячейки */
-.cell.given .cell-value-container { font-weight: bold; }
+/* 1. Базовый вид "given" ячейки - УБРАЛИ font-weight отсюда */
+/* .cell.given .cell-value-container { font-weight: bold; } <-- Можно удалить или оставить закомментированным */
 .cell.given {
     background-color: #eee; /* Базовый фон для given */
     cursor: default;
@@ -100,6 +103,7 @@ h1 {
     /* box-shadow: inset 0 0 3px #007bff; */
 }
 
+/* ===== Стили таймера ===== */
 #timer-container {
     margin-bottom: 10px; /* Отступ снизу перед доской */
     width: clamp(270px, 90vw, 500px); /* Ширина как у доски */
