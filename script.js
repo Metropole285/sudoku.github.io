@@ -100,12 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Вспомогательные функции ---
     function getSolutionValue(row, col) { if (!currentSolution) return null; const char = currentSolution[row * 9 + col]; return (char === '.' || char === '0') ? 0 : parseInt(char); }
-    // Снятие выделения с ячейки и подсветки строки/столбца
-    function clearSelection() {
-        if (selectedCell) { selectedCell.classList.remove('selected'); }
-        boardElement.querySelectorAll('.cell.highlighted').forEach(cell => { cell.classList.remove('highlighted'); });
-        selectedCell = null; selectedRow = -1; selectedCol = -1;
-    }
+    function clearSelection() { if (selectedCell) { selectedCell.classList.remove('selected'); } boardElement.querySelectorAll('.cell.highlighted').forEach(cell => { cell.classList.remove('highlighted'); }); selectedCell = null; selectedRow = -1; selectedCol = -1; }
     function clearErrors() { boardElement.querySelectorAll('.cell.incorrect').forEach(cell => { cell.classList.remove('incorrect'); }); statusMessageElement.textContent = ''; statusMessageElement.className = ''; }
     function updateNoteToggleButtonState() { if (isNoteMode) { noteToggleButton.classList.add('active'); noteToggleButton.title = "Режим заметок (ВКЛ)"; } else { noteToggleButton.classList.remove('active'); noteToggleButton.title = "Режим заметок (ВЫКЛ)"; } }
 
@@ -122,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const r = parseInt(target.dataset.row);
         const c = parseInt(target.dataset.col);
 
-        // Если кликнули по той же ячейке, ничего не делаем (уже выделена)
+        // Если кликнули по той же ячейке, ничего не делаем
         if (selectedCell === target) {
             return;
         }
@@ -135,12 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedRow = r;
         selectedCol = c;
 
-        // ! ИЗМЕНЕНИЕ: Добавляем класс .selected только если ячейка НЕ 'given'
+        // ! ВОЗВРАЩАЕМ ПРОВЕРКУ: Добавляем класс .selected только если ячейка НЕ 'given'
         if (!selectedCell.classList.contains('given')) {
             selectedCell.classList.add('selected'); // Выделяем только изменяемые ячейки
         }
-
-        // Добавить класс .highlighted ко всем ячейкам в той же строке и столбце
+        // ! НО подсветку строки/столбца делаем ВСЕГДА
         boardElement.querySelectorAll('.cell').forEach(cell => {
             const cellRow = parseInt(cell.dataset.row);
             const cellCol = parseInt(cell.dataset.col);
@@ -152,7 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clearErrors(); // Убрать подсветку ошибок при выборе
     });
 
-    // Клик по цифровой панели
+
+    // Клик по цифровой панели (включая проверку на 'given')
     numpad.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
@@ -160,23 +155,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // Переключение режима заметок
         if (button.id === 'note-toggle-button') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); console.log("Режим заметок:", isNoteMode ? "ВКЛ" : "ВЫКЛ"); return; }
 
-        // ! ИЗМЕНЕНИЕ: Не выполнять действия, если выбрана "given" ячейка
+        // Не выполнять действия, если выбрана "given" ячейка или нет выбора
         if (!selectedCell || selectedCell.classList.contains('given')) {
-             console.log("Действие отменено: выбрана 'given' ячейка или нет выбора.");
-             return; // Выход, если ячейка не выбрана или она изначальная
+             console.log("Действие (numpad) отменено: выбрана 'given' ячейка или нет выбора.");
+             return;
         }
 
-        // --- Продолжаем только если выбрана изменяемая ячейка ---
+        // Продолжаем только если выбрана изменяемая ячейка
         clearErrors();
         const cellData = userGrid[selectedRow][selectedCol];
         let needsRender = false;
 
         if (button.id === 'erase-button') {
-            // Логика стирания (без изменений)
+            // Логика стирания
             if (cellData.value !== 0) { cellData.value = 0; needsRender = true; }
             else if (cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; }
         } else if (button.dataset.num) {
-            // Логика ввода цифры (без изменений)
+            // Логика ввода цифры
             const num = parseInt(button.dataset.num);
             if (isNoteMode) {
                  if (cellData.value === 0) { if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; }
@@ -189,21 +184,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (needsRender) { renderCell(selectedRow, selectedCol); }
     });
 
-     // Обработка нажатий клавиш
+     // Обработка нажатий клавиш (включая проверку на 'given')
     document.addEventListener('keydown', (event) => {
-        // ! ИЗМЕНЕНИЕ: Не выполнять действия, если выбрана "given" ячейка
+         // Переключение режима заметок работает всегда
+         if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') {
+             isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault();
+             console.log("Режим заметок переключен клавиатурой:", isNoteMode ? "ВКЛ" : "ВЫКЛ");
+             return; // Выходим после переключения
+         }
+
+        // Не выполнять действия ввода/стирания, если выбрана "given" ячейка или нет выбора
         if (!selectedCell || selectedCell.classList.contains('given')) {
-             // Разрешаем только переключение режима заметок
-             if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') {
-                 isNoteMode = !isNoteMode;
-                 updateNoteToggleButtonState();
-                 event.preventDefault();
-                 console.log("Режим заметок переключен клавиатурой:", isNoteMode ? "ВКЛ" : "ВЫКЛ");
-             }
-             return; // Выход для остальных клавиш
+            console.log("Действие (keydown) отменено: выбрана 'given' ячейка или нет выбора.");
+            return;
         }
 
-        // --- Продолжаем только если выбрана изменяемая ячейка ---
+        // Продолжаем только если выбрана изменяемая ячейка
         const cellData = userGrid[selectedRow][selectedCol];
         let needsRender = false;
 
@@ -217,37 +213,43 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (event.key === 'Backspace' || event.key === 'Delete') {
             clearErrors(); if (cellData.value !== 0) { cellData.value = 0; needsRender = true; } else if (cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; }
         }
-        // Переключение режима заметок (N/Т) - уже обработано выше, но дублируем для ясности
-        else if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') {
-            isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault();
-            console.log("Режим заметок переключен клавиатурой:", isNoteMode ? "ВКЛ" : "ВЫКЛ");
-        }
 
         if (needsRender) { renderCell(selectedRow, selectedCol); }
     });
 
     // Клик по кнопке "Проверить" (без изменений)
-    checkButton.addEventListener('click', () => { /* ... */ });
+    checkButton.addEventListener('click', () => {
+        console.log("Нажата кнопка 'Проверить'"); clearErrors(); if (!currentSolution || !userGrid) return;
+        let allCorrect = true; let boardComplete = true;
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                const cellData = userGrid[r][c]; const userValue = cellData.value; const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (!cellElement) continue;
+                if (userValue === 0) { boardComplete = false; } else if (!cellElement.classList.contains('given')) { const solutionValue = getSolutionValue(r, c); if (userValue !== solutionValue) { cellElement.classList.add('incorrect'); allCorrect = false; } }
+            }
+        }
+        if (allCorrect && boardComplete) { statusMessageElement.textContent = "Поздравляем! Судоку решено верно!"; statusMessageElement.className = 'correct'; clearSelection(); }
+        else if (!allCorrect) { statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены."; statusMessageElement.className = 'incorrect-msg'; }
+        else { statusMessageElement.textContent = "Пока все верно, но поле не заполнено до конца."; statusMessageElement.className = ''; }
+    });
 
     // Клик по кнопке "Новая игра" -> Показать модальное окно (без изменений)
-    newGameButton.addEventListener('click', () => { /* ... */ });
+    newGameButton.addEventListener('click', () => { console.log("Нажата кнопка 'Новая игра'"); showDifficultyModal(); });
 
     // Обработка кликов внутри модального окна (без изменений)
-    modalButtonsContainer.addEventListener('click', (event) => { /* ... */ });
+    modalButtonsContainer.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target.classList.contains('difficulty-button')) { const difficulty = target.dataset.difficulty; if (difficulty) { console.log(`Выбрана сложность: ${difficulty}`); hideDifficultyModal(); initGame(difficulty); } }
+        else if (target.id === 'cancel-difficulty-button') { console.log("Выбор сложности отменен."); hideDifficultyModal(); }
+    });
 
     // Клик по оверлею для закрытия модального окна (без изменений)
-    modalOverlay.addEventListener('click', () => { /* ... */ });
+    modalOverlay.addEventListener('click', () => { console.log("Клик по оверлею, закрытие окна."); hideDifficultyModal(); });
 
     // --- Инициализация Telegram Web App SDK --- (без изменений)
-     try { /* ... */ } catch (e) { /* ... */ }
+     try { if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready(); console.log("Telegram WebApp SDK initialized."); } else { console.log("Telegram WebApp SDK not found."); } }
+     catch (e) { console.error("Error initializing TWA SDK:", e); }
 
     // --- Первый запуск игры при загрузке страницы ---
     initGame();
 
 }); // Конец 'DOMContentLoaded'
-
-// Неизмененные вспомогательные функции для краткости (они есть в полном коде выше)
-// function getSolutionValue(row, col) { ... }
-// function clearErrors() { ... }
-// function updateNoteToggleButtonState() { ... }
-// Код обработчиков checkButton, newGameButton, модального окна и TWA SDK
