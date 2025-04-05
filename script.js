@@ -1,4 +1,5 @@
-// Убедитесь, что файл sudoku.js (или sudoku.min.js) подключен в index.html ПЕРЕД этим скриптом.
+// Убедитесь, что файл sudoku.js (или sudoku.min.js, если вы его так назвали)
+// подключен в index.html ПЕРЕД этим скриптом.
 // <script src="sudoku.js"></script>
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,6 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMessageElement = document.getElementById('status-message');
     const numpad = document.getElementById('numpad');
     const noteToggleButton = document.getElementById('note-toggle-button');
+    // Элементы модального окна
+    const difficultyModal = document.getElementById('difficulty-modal');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalButtonsContainer = difficultyModal.querySelector('.modal-buttons');
+    const cancelDifficultyButton = document.getElementById('cancel-difficulty-button');
+
 
     // --- Переменные состояния игры ---
     let currentPuzzle = null; // Головоломка в виде строки
@@ -20,22 +27,23 @@ document.addEventListener('DOMContentLoaded', () => {
     let isNoteMode = false; // Флаг: включен ли режим ввода заметок
 
     // --- Инициализация новой игры ---
-    function initGame() {
-        console.log("Запуск initGame...");
+    // Принимает аргумент сложности, по умолчанию "medium"
+    function initGame(difficulty = "medium") {
+        console.log(`Запуск initGame с уровнем сложности: ${difficulty}...`);
         try {
-            // Проверка наличия библиотеки
+            // Проверка наличия библиотеки sudoku.js
             if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
                 throw new Error("Библиотека sudoku.js не загружена или неисправна.");
             }
-            console.log("Библиотека sudoku найдена.");
-
-            // Генерация и решение
-            currentPuzzle = sudoku.generate("medium"); // Можно выбрать сложность
-            if (!currentPuzzle) throw new Error("Генерация не удалась");
+            console.log(`Генерация головоломки (${difficulty})...`);
+            currentPuzzle = sudoku.generate(difficulty); // Используем переданную сложность
+            if (!currentPuzzle) throw new Error(`Генерация (${difficulty}) не удалась`);
+            console.log("Сгенерировано:", currentPuzzle);
             currentSolution = sudoku.solve(currentPuzzle);
             if (!currentSolution) throw new Error("Не удалось найти решение");
+            console.log("Решение найдено:", currentSolution);
 
-            // Инициализация userGrid объектами
+            // Инициализация userGrid объектами на основе головоломки
             userGrid = boardStringToObjectArray(currentPuzzle);
 
             renderBoard(); // Полная отрисовка доски
@@ -54,6 +62,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Функции для модального окна ---
+    function showDifficultyModal() {
+        modalOverlay.style.display = 'block'; // Показываем фон
+        difficultyModal.style.display = 'block'; // Показываем окно
+        // Добавляем классы для анимации плавного появления
+        // Небольшая задержка нужна, чтобы transition сработал после display: block
+        requestAnimationFrame(() => {
+             modalOverlay.classList.add('visible');
+             difficultyModal.classList.add('visible');
+        });
+        console.log("Модальное окно выбора сложности показано.");
+    }
+
+    function hideDifficultyModal() {
+        // Убираем классы для анимации плавного исчезновения
+         modalOverlay.classList.remove('visible');
+         difficultyModal.classList.remove('visible');
+        // Скрываем элементы после завершения анимации
+         // Можно использовать событие 'transitionend', но setTimeout проще
+         setTimeout(() => {
+            modalOverlay.style.display = 'none';
+            difficultyModal.style.display = 'none';
+            console.log("Модальное окно выбора сложности скрыто.");
+        }, 300); // Должно совпадать с длительностью transition в CSS
+    }
+
     // --- Преобразование строки головоломки в массив объектов ---
     function boardStringToObjectArray(boardString) {
         const grid = [];
@@ -62,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let c = 0; c < 9; c++) {
                 const char = boardString[r * 9 + c];
                 const value = (char === '.' || char === '0') ? 0 : parseInt(char);
-                // Каждая ячейка - объект со значением и набором заметок
                 grid[r][c] = {
                     value: value,
                     notes: new Set() // Изначально заметки пустые
@@ -215,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
              clearSelection();
              return;
         }
-
         // Проверяем, что ячейка не изначальная
         if (!target.classList.contains('given')) {
             clearSelection(); // Снять старое выделение
@@ -379,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
                 const cellData = userGrid[r][c]; // Получаем объект
-                const userValue = cellData.value; // Проверяем только основное значение
+                const userValue = cellData.value; // Проверяем только .value
                 const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
                 if (!cellElement) continue; // На всякий случай
 
@@ -398,7 +430,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-
         // Вывод результата проверки
         if (allCorrect && boardComplete) {
             statusMessageElement.textContent = "Поздравляем! Судоку решено верно!";
@@ -413,33 +444,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Клик по кнопке "Новая игра"
+    // Клик по кнопке "Новая игра" -> Показать модальное окно
     newGameButton.addEventListener('click', () => {
-        // Спрашиваем подтверждение у пользователя
-        if (window.confirm("Начать новую игру? Текущий прогресс будет потерян.")) {
-            console.log("Нажата кнопка 'Новая игра'");
-            initGame(); // Запускаем инициализацию заново
-        } else {
-            console.log("Новая игра отменена пользователем.");
+        console.log("Нажата кнопка 'Новая игра'");
+        showDifficultyModal();
+    });
+
+    // --- Обработка кликов внутри модального окна ---
+    modalButtonsContainer.addEventListener('click', (event) => {
+        const target = event.target;
+        // Клик по кнопке сложности
+        if (target.classList.contains('difficulty-button')) {
+            const difficulty = target.dataset.difficulty;
+            if (difficulty) {
+                console.log(`Выбрана сложность: ${difficulty}`);
+                hideDifficultyModal();
+                initGame(difficulty); // Начать игру с этой сложностью
+            }
+        }
+        // Клик по кнопке "Отмена"
+        else if (target.id === 'cancel-difficulty-button') {
+             console.log("Выбор сложности отменен.");
+             hideDifficultyModal();
         }
     });
 
-    // --- Инициализация Telegram Web App SDK (если используется) ---
+    // Клик по оверлею для закрытия модального окна
+    modalOverlay.addEventListener('click', () => {
+        console.log("Клик по оверлею, закрытие окна.");
+        hideDifficultyModal();
+    });
+
+    // --- Инициализация Telegram Web App SDK ---
      try {
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.ready(); // Сообщаем Telegram, что приложение готово
-            // window.Telegram.WebApp.expand(); // Раскомментируйте, если хотите развернуть на весь экран
             console.log("Telegram WebApp SDK инициализирован.");
+            // window.Telegram.WebApp.expand(); // Раскомментируйте для разворота на весь экран
         } else {
-            // Это нормально, если вы запускаете не внутри Telegram
-            console.log("Telegram WebApp SDK не найден (запуск вне Telegram?).");
+            console.log("Telegram WebApp SDK не найден.");
         }
      } catch (e) {
-         // Обработка возможных ошибок инициализации SDK
          console.error("Ошибка инициализации Telegram WebApp SDK:", e);
      }
 
     // --- Первый запуск игры при загрузке страницы ---
+    // Запускаем с уровнем сложности по умолчанию ("medium")
     initGame();
 
 }); // Конец обработчика 'DOMContentLoaded'
