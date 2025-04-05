@@ -100,6 +100,14 @@ h1 {
     /* box-shadow: inset 0 0 3px #007bff; */
 }
 
+#timer {
+    font-size: 1.1em; /* Немного крупнее обычного текста */
+    font-weight: bold;
+    color: #555; /* Не слишком яркий цвет */
+    margin-bottom: 10px; /* Отступ снизу */
+    min-width: 120px; /* Чтобы ширина не скакала */
+    text-align: center; /* Центрировать текст */
+}
 
 /* ===== Стили элементов управления ===== (без изменений) */
 #controls { display: flex; gap: 10px; margin-bottom: 5px; }
