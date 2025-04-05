@@ -32,21 +32,8 @@ h1 {
     margin-bottom: 15px; /* Отступ снизу */
     background-color: white; /* Белый фон ячеек */
     overflow: hidden; /* Обрезать все, что может выйти за рамки */
-    /* Добавим transition для плавного размытия/затемнения при появлении модалки */
     transition: filter 0.3s ease-in-out;
 }
-
-/* Дополнительный класс для размытия фона при активном модальном окне */
-body.modal-active #sudoku-board,
-body.modal-active #controls,
-body.modal-active #status-message,
-body.modal-active #numpad,
-body.modal-active h1 {
-    /* filter: blur(3px) brightness(0.8); */ /* Размытие + затемнение */
-    /* filter не очень хорошо работает с grid, может тормозить */
-    /* Альтернатива - использовать оверлей */
-}
-
 
 /* --- Стили ячеек и их границ --- */
 .cell {
@@ -64,6 +51,7 @@ body.modal-active h1 {
     -ms-user-select: none;
     position: relative; /* Важно для абсолютного позиционирования дочерних контейнеров */
     overflow: hidden; /* Скрыть все, что выходит за рамки ячейки */
+    transition: background-color 0.1s ease-in-out; /* Плавный переход фона */
 }
 
 /* Убираем "двойные" тонкие линии внутри блоков */
@@ -120,194 +108,56 @@ body.modal-active h1 {
 
 /* --- Стили для состояний ячеек --- */
 /* Изначально заданные цифры */
-.cell.given .cell-value-container { /* Стилизуем контейнер значения для данных ячеек */
-    font-weight: bold; /* Жирный шрифт */
+.cell.given .cell-value-container { font-weight: bold; }
+.cell.given { background-color: #eee; cursor: default; }
+
+/* ! НОВЫЙ СТИЛЬ: Подсветка строки/столбца */
+.cell.highlighted {
+    background-color: #e8f4ff; /* Очень светло-голубой (или другой неяркий цвет, например, #f0f0f0) */
 }
-.cell.given { /* Сама ячейка */
-    background-color: #eee; /* Слегка серый фон */
-    cursor: default; /* Обычный курсор */
-}
-/* Выбранная пользователем ячейка */
+
+/* Выбранная пользователем ячейка (должна быть поверх highlighted) */
 .cell.selected {
     background-color: #a7d8ff; /* Светло-голубой фон */
-    /* box-shadow: inset 0 0 3px #007bff; */ /* Опциональный эффект */
+    /* box-shadow: inset 0 0 3px #007bff; */
 }
+
 /* Неправильно введенная цифра (после проверки) */
-.cell.incorrect .cell-value-container { /* Стилизуем контейнер значения */
-    color: red; /* Красный цвет цифры */
-}
-.cell.incorrect { /* Сама ячейка */
-     background-color: #ffdddd; /* Бледно-розовый фон */
-}
+.cell.incorrect .cell-value-container { color: red; }
+.cell.incorrect { background-color: #ffdddd; }
 
 
-/* ===== Стили элементов управления ===== */
-#controls {
-    display: flex; /* Расположить кнопки в ряд */
-    gap: 10px; /* Пространство между кнопками */
-    margin-bottom: 5px; /* Уменьшенный отступ снизу */
-}
-
-#controls button {
-    padding: 10px 15px; /* Внутренние отступы */
-    font-size: 16px;
-    cursor: pointer;
-    border: none; /* Убрать стандартную рамку */
-    border-radius: 5px; /* Скругление углов */
-    background-color: #007bff; /* Синий цвет */
-    color: white; /* Белый текст */
-    transition: background-color 0.2s; /* Плавный переход цвета фона */
-}
+/* ===== Стили элементов управления ===== (без изменений) */
+#controls { display: flex; gap: 10px; margin-bottom: 5px; }
+#controls button { padding: 10px 15px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background-color: #007bff; color: white; transition: background-color 0.2s; }
 #controls button:hover { background-color: #0056b3; }
 #controls button:active { background-color: #004085; }
 
-
-/* ===== Стили для сообщения о статусе ===== */
-#status-message {
-    margin-top: 2px; /* Уменьшенный отступ сверху */
-    font-size: 16px;
-    min-height: 18px; /* Уменьшенный резерв высоты */
-    font-weight: bold;
-    text-align: center;
-}
+/* ===== Стили для сообщения о статусе ===== (без изменений) */
+#status-message { margin-top: 2px; font-size: 16px; min-height: 18px; font-weight: bold; text-align: center; }
 .correct { color: green; }
 .incorrect-msg { color: red; }
 
-
-/* ===== Стили для цифровой панели ===== */
-#numpad {
-    display: grid;
-    /* Сетка 3x4: 9 цифр + Заметки/Стереть */
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(4, auto);
-    gap: 5px;
-    margin-top: 5px; /* Уменьшенный отступ сверху */
-    width: clamp(200px, 70vw, 280px); /* Панель может быть поуже */
-}
-
-#numpad button {
-    padding: 10px 0; /* Вертикальный отступ */
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #fff; /* Белый фон */
-    transition: background-color 0.2s, box-shadow 0.2s;
-    -webkit-tap-highlight-color: transparent; /* Убрать подсветку на мобильных */
-}
+/* ===== Стили для цифровой панели ===== (без изменений) */
+#numpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 5px; margin-top: 5px; width: clamp(200px, 70vw, 280px); }
+#numpad button { padding: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background-color: #fff; transition: background-color 0.2s, box-shadow 0.2s; -webkit-tap-highlight-color: transparent; }
 #numpad button:hover { background-color: #eee; }
 #numpad button:active { background-color: #ddd; }
-
-/* Позиционирование кнопки "Заметки" */
-#note-toggle-button {
-    grid-column: 1 / 2; /* Первая колонка */
-    grid-row: 4 / 5;    /* Четвертый ряд */
-    font-size: 20px;    /* Размер иконки */
-}
-/* Позиционирование кнопки "Стереть" */
-#erase-button {
-    grid-column: 2 / 4; /* Занимает 2 и 3 колонки */
-    grid-row: 4 / 5;    /* Четвертый ряд */
-    background-color: #ffc107;
-}
+#note-toggle-button { grid-column: 1 / 2; grid-row: 4 / 5; font-size: 20px; }
+#erase-button { grid-column: 2 / 4; grid-row: 4 / 5; background-color: #ffc107; }
 #erase-button:hover { background-color: #e0a800; }
+#note-toggle-button.active { background-color: #a7d8ff; box-shadow: inset 0 0 4px rgba(0,0,0,0.3); }
 
-/* Стиль для активной кнопки "Заметки" */
-#note-toggle-button.active {
-    background-color: #a7d8ff; /* Такой же цвет, как у выделенной ячейки */
-    box-shadow: inset 0 0 4px rgba(0,0,0,0.3); /* Внутренняя тень */
-}
-
-/* ===== Стили для модального окна сложности ===== */
-
-#modal-overlay {
-    position: fixed; /* Позиционирование относительно окна браузера */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Полупрозрачный черный фон */
-    backdrop-filter: blur(3px); /* Эффект размытия фона */
-    -webkit-backdrop-filter: blur(3px); /* Для Safari */
-    z-index: 100; /* Должен быть выше основного контента */
-    display: none; /* Скрыт по умолчанию */
-    opacity: 0; /* Начальная прозрачность для анимации */
-    transition: opacity 0.3s ease-in-out; /* Плавное появление */
-    cursor: pointer; /* Показать, что можно кликнуть для закрытия */
-}
-/* Стиль для видимого оверлея */
-#modal-overlay.visible {
-    display: block;
-    opacity: 1;
-}
-
-#difficulty-modal {
-    position: fixed; /* Позиционирование относительно окна браузера */
-    top: 50%; /* Центрирование по вертикали */
-    left: 50%; /* Центрирование по горизонтали */
-    transform: translate(-50%, -50%) scale(0.95); /* Начальное состояние для анимации */
-    background-color: white;
-    padding: 25px 35px;
-    border-radius: 8px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
-    z-index: 101; /* Должен быть выше оверлея */
-    display: none; /* Скрыт по умолчанию */
-    text-align: center;
-    opacity: 0; /* Начальная прозрачность для анимации */
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; /* Анимация появления */
-}
-/* Стиль для видимого модального окна */
-#difficulty-modal.visible {
-     display: block;
-     opacity: 1;
-     transform: translate(-50%, -50%) scale(1); /* Конечное состояние анимации */
-}
-
-
-#difficulty-modal h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #333;
-}
-
-#difficulty-modal .modal-buttons {
-    display: flex;
-    flex-direction: column; /* Кнопки друг под другом */
-    gap: 10px; /* Отступы между кнопками */
-}
-
-#difficulty-modal .modal-buttons button {
-    padding: 12px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f8f9fa;
-    color: #333;
-    transition: background-color 0.2s, border-color 0.2s;
-}
-
-#difficulty-modal .modal-buttons button:hover {
-    background-color: #e9ecef;
-    border-color: #bbb;
-}
-
-/* Выделяем кнопки сложности */
-#difficulty-modal .modal-buttons button.difficulty-button {
-    background-color: #e7f3ff;
-    border-color: #b8d6f3;
-}
-#difficulty-modal .modal-buttons button.difficulty-button:hover {
-    background-color: #cfe4fa;
-    border-color: #a1c3e6;
-}
-
-/* Кнопка отмены */
-#difficulty-modal .modal-buttons #cancel-difficulty-button {
-    margin-top: 10px; /* Небольшой отступ сверху */
-    background-color: #f1f1f1;
-}
-#difficulty-modal .modal-buttons #cancel-difficulty-button:hover {
-    background-color: #e1e1e1;
-}
+/* ===== Стили для модального окна сложности ===== (без изменений) */
+#modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 100; display: none; opacity: 0; transition: opacity 0.3s ease-in-out; cursor: pointer; }
+#modal-overlay.visible { display: block; opacity: 1; }
+#difficulty-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); background-color: white; padding: 25px 35px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); z-index: 101; display: none; text-align: center; opacity: 0; transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+#difficulty-modal.visible { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#difficulty-modal h2 { margin-top: 0; margin-bottom: 20px; color: #333; }
+#difficulty-modal .modal-buttons { display: flex; flex-direction: column; gap: 10px; }
+#difficulty-modal .modal-buttons button { padding: 12px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background-color: #f8f9fa; color: #333; transition: background-color 0.2s, border-color 0.2s; }
+#difficulty-modal .modal-buttons button:hover { background-color: #e9ecef; border-color: #bbb; }
+#difficulty-modal .modal-buttons button.difficulty-button { background-color: #e7f3ff; border-color: #b8d6f3; }
+#difficulty-modal .modal-buttons button.difficulty-button:hover { background-color: #cfe4fa; border-color: #a1c3e6; }
+#difficulty-modal .modal-buttons #cancel-difficulty-button { margin-top: 10px; background-color: #f1f1f1; }
+#difficulty-modal .modal-buttons #cancel-difficulty-button:hover { background-color: #e1e1e1; }
