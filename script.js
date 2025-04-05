@@ -1,5 +1,4 @@
-// Убедитесь, что файл sudoku.js (или sudoku.min.js, если вы его так назвали)
-// подключен в index.html ПЕРЕД этим скриптом.
+// Убедитесь, что файл sudoku.js (или sudoku.min.js) подключен в index.html ПЕРЕД этим скриптом.
 // <script src="sudoku.js"></script> или <script src="sudoku.min.js"></script>
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,16 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const noteToggleButton = document.getElementById('note-toggle-button'); // Убедитесь, что кнопка в HTML имеет id="note-toggle-button"
     const difficultyModal = document.getElementById('difficulty-modal');
     const modalOverlay = document.getElementById('modal-overlay');
-    const modalButtonsContainer = difficultyModal ? difficultyModal.querySelector('.modal-buttons') : null; // Добавлена проверка
+    const modalButtonsContainer = difficultyModal ? difficultyModal.querySelector('.modal-buttons') : null;
+    const timerElement = document.getElementById('timer'); // Получаем элемент таймера
 
     // --- Переменные состояния игры ---
-    let currentPuzzle = null; // Головоломка в виде строки
-    let currentSolution = null; // Решение головоломки в виде строки
-    let userGrid = []; // Текущее состояние доски пользователя (массив 9x9 объектов {value, notes})
-    let selectedCell = null; // Ссылка на выбранный DOM-элемент ячейки (<div>)
-    let selectedRow = -1;    // Индекс строки выбранной ячейки
-    let selectedCol = -1;    // Индекс колонки выбранной ячейки
-    let isNoteMode = false; // Флаг режима заметок
+    let currentPuzzle = null;
+    let currentSolution = null;
+    let userGrid = [];
+    let selectedCell = null;
+    let selectedRow = -1;
+    let selectedCol = -1;
+    let isNoteMode = false;
+    let timerInterval = null; // ID интервала для таймера
+    let secondsElapsed = 0;   // Счетчик секунд для таймера
 
     // --- Инициализация новой игры ---
     function initGame(difficulty = "medium") {
@@ -38,59 +40,78 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!currentSolution) throw new Error("Не удалось найти решение");
             console.log("Решение:", currentSolution);
 
-            userGrid = boardStringToObjectArray(currentPuzzle); // Преобразуем в массив объектов
-            renderBoard(); // Рисуем доску
-            clearSelection(); // Сбрасываем выделение
-            statusMessageElement.textContent = ''; // Чистим статус
+            userGrid = boardStringToObjectArray(currentPuzzle);
+            renderBoard();
+            clearSelection();
+            statusMessageElement.textContent = '';
             statusMessageElement.className = '';
-            isNoteMode = false; // Сбрасываем режим заметок
-            updateNoteToggleButtonState(); // Обновляем вид кнопки заметок
+            isNoteMode = false;
+            updateNoteToggleButtonState();
+
+            // --- Управление таймером при старте игры ---
+            stopTimer(); // Остановить предыдущий, если был
+            secondsElapsed = 0; // Сбросить счетчик
+            updateTimerDisplay(); // Показать 00:00
+            startTimer(); // Запустить новый
+            // ------------------------------------------
+
             console.log("Новая игра успешно инициализирована.");
         } catch (error) {
             console.error("ОШИБКА в initGame:", error);
             statusMessageElement.textContent = "Ошибка генерации судоку! " + error.message;
             statusMessageElement.className = 'incorrect-msg';
             boardElement.innerHTML = '<p style="color: red; text-align: center;">Не удалось загрузить игру.</p>';
+            stopTimer(); // Остановить таймер и при ошибке
         }
     }
 
-    // --- Функции для модального окна выбора сложности ---
+    // --- Функции для модального окна ---
     function showDifficultyModal() {
         if (modalOverlay && difficultyModal) {
-            modalOverlay.style.display = 'block';
-            difficultyModal.style.display = 'block';
-            requestAnimationFrame(() => {
-                modalOverlay.classList.add('visible');
-                difficultyModal.classList.add('visible');
-            });
+            modalOverlay.style.display = 'block'; difficultyModal.style.display = 'block';
+            requestAnimationFrame(() => { modalOverlay.classList.add('visible'); difficultyModal.classList.add('visible'); });
             console.log("Модальное окно показано.");
-        } else {
-            console.error("Элементы модального окна не найдены!");
-        }
+        } else { console.error("Элементы модального окна не найдены!"); }
     }
     function hideDifficultyModal() {
          if (modalOverlay && difficultyModal) {
-            modalOverlay.classList.remove('visible');
-            difficultyModal.classList.remove('visible');
-            setTimeout(() => {
-                modalOverlay.style.display = 'none';
-                difficultyModal.style.display = 'none';
-            }, 300);
+            modalOverlay.classList.remove('visible'); difficultyModal.classList.remove('visible');
+            setTimeout(() => { modalOverlay.style.display = 'none'; difficultyModal.style.display = 'none'; }, 300);
             console.log("Модальное окно скрыто.");
          }
+    }
+
+    // --- Функции для таймера ---
+    function startTimer() {
+        if(timerInterval) return; // Не запускать, если уже запущен
+        timerInterval = setInterval(() => {
+            secondsElapsed++;
+            updateTimerDisplay();
+        }, 1000);
+         console.log("Таймер запущен.");
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            console.log("Таймер остановлен.");
+        }
+    }
+
+    function updateTimerDisplay() {
+        if (!timerElement) return;
+        const minutes = Math.floor(secondsElapsed / 60);
+        const seconds = secondsElapsed % 60;
+        const formattedMinutes = String(minutes).padStart(2, '0');
+        const formattedSeconds = String(seconds).padStart(2, '0');
+        timerElement.textContent = `Время: ${formattedMinutes}:${formattedSeconds}`;
     }
 
     // --- Преобразование строки головоломки в массив объектов ячеек ---
     function boardStringToObjectArray(boardString) {
         const grid = [];
-        for (let r = 0; r < 9; r++) {
-            grid[r] = [];
-            for (let c = 0; c < 9; c++) {
-                const char = boardString[r * 9 + c];
-                const value = (char === '.' || char === '0') ? 0 : parseInt(char);
-                grid[r][c] = { value: value, notes: new Set() };
-            }
-        }
+        for (let r = 0; r < 9; r++) { grid[r] = []; for (let c = 0; c < 9; c++) { const char = boardString[r * 9 + c]; const value = (char === '.' || char === '0') ? 0 : parseInt(char); grid[r][c] = { value: value, notes: new Set() }; } }
         return grid;
     }
 
@@ -98,53 +119,28 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderBoard() {
         boardElement.innerHTML = '';
         if (!userGrid || userGrid.length !== 9) { console.error("renderBoard: Некорректные данные userGrid"); return; }
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                const cellElement = createCellElement(r, c);
-                boardElement.appendChild(cellElement);
-            }
-        }
+        for (let r = 0; r < 9; r++) { for (let c = 0; c < 9; c++) { const cellElement = createCellElement(r, c); boardElement.appendChild(cellElement); } }
         console.log("Доска перерисована (renderBoard).");
     }
 
     // --- Создание DOM-элемента для ОДНОЙ ячейки ---
     function createCellElement(r, c) {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.dataset.row = r;
-        cell.dataset.col = c;
+        const cell = document.createElement('div'); cell.classList.add('cell'); cell.dataset.row = r; cell.dataset.col = c;
         const cellData = userGrid[r][c];
-        const valueContainer = document.createElement('div');
-        valueContainer.classList.add('cell-value-container');
-        const notesContainer = document.createElement('div');
-        notesContainer.classList.add('cell-notes-container');
+        const valueContainer = document.createElement('div'); valueContainer.classList.add('cell-value-container');
+        const notesContainer = document.createElement('div'); notesContainer.classList.add('cell-notes-container');
 
         if (cellData.value !== 0) { // Показываем основное значение
-            valueContainer.textContent = cellData.value;
-            valueContainer.style.display = 'flex';
-            notesContainer.style.display = 'none';
-            const puzzleChar = currentPuzzle[r * 9 + c];
-            if (puzzleChar !== '.' && puzzleChar !== '0') {
-                cell.classList.add('given');
-            }
+            valueContainer.textContent = cellData.value; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none';
+            const puzzleChar = currentPuzzle[r * 9 + c]; if (puzzleChar !== '.' && puzzleChar !== '0') { cell.classList.add('given'); }
         } else if (cellData.notes.size > 0) { // Показываем заметки
-            valueContainer.style.display = 'none';
-            notesContainer.style.display = 'grid';
-            notesContainer.innerHTML = '';
-            for (let n = 1; n <= 9; n++) {
-                const noteDigit = document.createElement('div');
-                noteDigit.classList.add('note-digit');
-                noteDigit.textContent = cellData.notes.has(n) ? n : '';
-                notesContainer.appendChild(noteDigit);
-            }
-        } else { // Ячейка пустая (нет ни значения, ни заметок)
-            valueContainer.textContent = '';
-            valueContainer.style.display = 'flex';
-            notesContainer.style.display = 'none';
+            valueContainer.style.display = 'none'; notesContainer.style.display = 'grid'; notesContainer.innerHTML = '';
+            for (let n = 1; n <= 9; n++) { const noteDigit = document.createElement('div'); noteDigit.classList.add('note-digit'); noteDigit.textContent = cellData.notes.has(n) ? n : ''; notesContainer.appendChild(noteDigit); }
+        } else { // Ячейка пустая
+            valueContainer.textContent = ''; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none';
         }
 
-        cell.appendChild(valueContainer);
-        cell.appendChild(notesContainer);
+        cell.appendChild(valueContainer); cell.appendChild(notesContainer);
         cell.classList.remove('thick-border-bottom', 'thick-border-right');
         if ((c + 1) % 3 === 0 && c < 8) cell.classList.add('thick-border-right');
         if ((r + 1) % 3 === 0 && r < 8) cell.classList.add('thick-border-bottom');
@@ -161,15 +157,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (oldCell.classList.contains('highlighted')) newCell.classList.add('highlighted');
             if (selectedRow === r && selectedCol === c) { selectedCell = newCell; }
             oldCell.replaceWith(newCell);
-        } else {
-            console.warn(`renderCell: Ячейка [${r}, ${c}] не найдена в DOM для перерисовки.`);
-        }
+        } else { console.warn(`renderCell: Ячейка [${r}, ${c}] не найдена.`); }
     }
 
     // --- Вспомогательные функции ---
     function getSolutionValue(row, col) { if (!currentSolution) return null; const char = currentSolution[row * 9 + col]; return (char === '.' || char === '0') ? 0 : parseInt(char); }
 
-    // Снятие выделения ячейки и подсветки строки/столбца
+    // Снятие выделения ячейки и подсветки
     function clearSelection() {
         if (selectedCell) { selectedCell.classList.remove('selected'); }
         boardElement.querySelectorAll('.cell.highlighted').forEach(cell => { cell.classList.remove('highlighted'); });
@@ -177,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
          console.log("Selection cleared.");
     }
 
-    // Очистка подсветки неверных ячеек и статуса
+    // Очистка подсветки ошибок и статуса
     function clearErrors() { boardElement.querySelectorAll('.cell.incorrect').forEach(cell => { cell.classList.remove('incorrect'); }); statusMessageElement.textContent = ''; statusMessageElement.className = ''; }
 
     // Обновление вида кнопки режима заметок
@@ -189,11 +183,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { console.warn("Кнопка режима заметок не найдена."); }
     }
 
-    // Новая функция для подсветки связанных ячеек (строка, столбец)
+    // Новая функция для подсветки связанных ячеек
     function highlightRelatedCells(row, col) {
         boardElement.querySelectorAll('.cell').forEach(cell => {
-            const cellRow = parseInt(cell.dataset.row);
-            const cellCol = parseInt(cell.dataset.col);
+            const cellRow = parseInt(cell.dataset.row); const cellCol = parseInt(cell.dataset.col);
             if (cellRow === row || cellCol === col) { cell.classList.add('highlighted'); }
         });
         console.log("Related cells highlighted.");
@@ -201,178 +194,94 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Обработчики событий ---
 
-    // Клик по доске (выбор ячейки + подсветка) - ИСПРАВЛЕННАЯ ЛОГИКА
+    // Клик по доске (выбор ячейки + подсветка)
     boardElement.addEventListener('click', (event) => {
         const target = event.target.closest('.cell');
         if (!target) { console.log("Клик мимо ячейки."); return; }
-        const r = parseInt(target.dataset.row);
-        const c = parseInt(target.dataset.col);
-
-        if (target === selectedCell) { // Повторный клик на ту же ячейку
-            clearSelection(); // Просто снимаем выделение
-        } else { // Клик на другую ячейку
-            clearSelection(); // Снимаем старое выделение/подсветку
-            selectedCell = target; // Запоминаем новую
-            selectedRow = r;
-            selectedCol = c;
+        const r = parseInt(target.dataset.row); const c = parseInt(target.dataset.col);
+        if (target === selectedCell) { clearSelection(); } // Повторный клик - снять выделение
+        else { // Клик на другую ячейку
+            clearSelection();
+            selectedCell = target; selectedRow = r; selectedCol = c;
             console.log(`Selected cell [${r}, ${c}]`);
-            if (!selectedCell.classList.contains('given')) { // Выделяем, если не изначальная
-                selectedCell.classList.add('selected');
-            }
-            highlightRelatedCells(r, c); // Подсвечиваем строку/столбец
+            if (!selectedCell.classList.contains('given')) { selectedCell.classList.add('selected'); }
+            highlightRelatedCells(r, c);
         }
-        clearErrors(); // Убираем ошибки при любом выборе
+        clearErrors();
     });
 
-    // Клик по цифровой панели (ввод/стирание/заметки) - ИЗМЕНЕННАЯ ЛОГИКА СТИРАНИЯ
+    // Клик по цифровой панели (ввод/стирание/заметки)
     numpad.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
+        if (button.id === 'note-toggle-button') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); return; }
+        if (!selectedCell || selectedCell.classList.contains('given')) { console.log("Numpad click ignored: cell not selected or is given."); return; }
+        clearErrors();
+        const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false;
 
-        if (button.id === 'note-toggle-button') { // Переключение режима заметок
-            isNoteMode = !isNoteMode;
-            updateNoteToggleButtonState();
-            return;
-        }
-
-        if (!selectedCell || selectedCell.classList.contains('given')) { // Ячейка не выбрана или не изменяема
-             console.log("Numpad click ignored: cell not selected or is given.");
-             return;
-        }
-
-        clearErrors(); // Убираем ошибки перед действием
-
-        const cellData = userGrid[selectedRow][selectedCol];
-        let needsRender = false; // Нужно ли перерисовать ячейку?
-
-        // === ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ КНОПКИ "СТЕРЕТЬ" ===
-        if (button.id === 'erase-button') {
-            if (cellData.value !== 0) { // Если было БОЛЬШОЕ значение
-                cellData.value = 0;     // Стираем ТОЛЬКО его (заметки остаются)
-                needsRender = true;
-                console.log(`Erased value at [${selectedRow}, ${selectedCol}], notes preserved.`);
-            } else if (cellData.notes.size > 0) { // Если значения не было, но были ЗАМЕТКИ
-                cellData.notes.clear(); // Стираем все заметки
-                needsRender = true;
-                console.log(`Cleared notes at [${selectedRow}, ${selectedCol}]`);
-            }
-        }
-        // === КОНЕЦ ОБНОВЛЕНИЙ ДЛЯ "СТЕРЕТЬ" ===
-
-        // Обработка кнопок с цифрами
-        else if (button.dataset.num) {
+        if (button.id === 'erase-button') { // Стирание
+            if (cellData.value !== 0) { cellData.value = 0; needsRender = true; console.log(`Erased value at [${selectedRow}, ${selectedCol}], notes preserved.`); }
+            else if (cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; console.log(`Cleared notes at [${selectedRow}, ${selectedCol}]`); }
+        } else if (button.dataset.num) { // Ввод цифры/заметки
             const num = parseInt(button.dataset.num);
-            if (isNoteMode) { // РЕЖИМ ЗАМЕТОК
-                if (cellData.value === 0) { // Только для пустых ячеек
-                    if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num);
-                    needsRender = true;
-                } else { console.log("Cannot add note to a cell with a value."); }
-            } else { // РЕЖИМ ВВОДА ЦИФР
-                if (cellData.value !== num) { // Вводим новую цифру
-                    cellData.value = num;
-                    // Заметки НЕ стираем: cellData.notes.clear();
-                    needsRender = true;
-                } else { // Повторный клик на ту же цифру - стираем ее
-                    cellData.value = 0;
-                    needsRender = true;
-                }
+            if (isNoteMode) { // Режим заметок
+                if (cellData.value === 0) { if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; }
+                else { console.log("Cannot add note to a cell with a value."); }
+            } else { // Режим ввода цифры
+                if (cellData.value !== num) { cellData.value = num; needsRender = true; } // Заметки НЕ стираем
+                else { cellData.value = 0; needsRender = true; } // Повторный клик - стирание
             }
         }
-
-        if (needsRender) { // Перерисовываем ячейку, если были изменения
-            renderCell(selectedRow, selectedCol);
-        }
+        if (needsRender) { renderCell(selectedRow, selectedCol); }
     });
 
-     // Обработка нажатий клавиш клавиатуры - ИЗМЕНЕННАЯ ЛОГИКА СТИРАНИЯ
+     // Обработка нажатий клавиш клавиатуры
     document.addEventListener('keydown', (event) => {
-        // Переключение режима заметок
-        if ((event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') && !(document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-            isNoteMode = !isNoteMode;
-            updateNoteToggleButtonState();
+        if ((event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') && !(document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault(); return; }
+        if (!selectedCell || selectedCell.classList.contains('given')) return;
+        const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false;
+
+        if (event.key >= '1' && event.key <= '9') { // Ввод цифр
+            clearErrors(); const num = parseInt(event.key);
+            if (isNoteMode) { if (cellData.value === 0) { if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; } }
+            else { if (cellData.value !== num) { cellData.value = num; needsRender = true; } else { cellData.value = 0; needsRender = true; } } // Заметки НЕ стираем
             event.preventDefault();
-            return;
-        }
-
-        if (!selectedCell || selectedCell.classList.contains('given')) return; // Ячейка не выбрана или не изменяема
-
-        const cellData = userGrid[selectedRow][selectedCol];
-        let needsRender = false;
-
-        // Обработка цифр 1-9
-        if (event.key >= '1' && event.key <= '9') {
+        } else if (event.key === 'Backspace' || event.key === 'Delete') { // Стирание
             clearErrors();
-            const num = parseInt(event.key);
-            if (isNoteMode) { // Заметки
-                if (cellData.value === 0) {
-                    if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num);
-                    needsRender = true;
-                }
-            } else { // Ввод цифры
-                if (cellData.value !== num) {
-                    cellData.value = num;
-                    // Заметки НЕ стираем: cellData.notes.clear();
-                    needsRender = true;
-                } else { // Повторное нажатие - стирание
-                    cellData.value = 0;
-                    needsRender = true;
-                }
-            }
+            if (cellData.value !== 0) { cellData.value = 0; needsRender = true; console.log(`Key: Erased value at [${selectedRow}, ${selectedCol}], notes preserved.`); }
+            else if (cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; console.log(`Key: Cleared notes at [${selectedRow}, ${selectedCol}]`); }
             event.preventDefault();
         }
-        // === ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ BACKSPACE / DELETE ===
-        else if (event.key === 'Backspace' || event.key === 'Delete') {
-            clearErrors();
-            if (cellData.value !== 0) { // Если было БОЛЬШОЕ значение
-                cellData.value = 0;     // Стираем ТОЛЬКО его
-                needsRender = true;
-                 console.log(`Key: Erased value at [${selectedRow}, ${selectedCol}], notes preserved.`);
-            } else if (cellData.notes.size > 0) { // Если значения не было, но были ЗАМЕТКИ
-                cellData.notes.clear(); // Стираем все заметки
-                needsRender = true;
-                 console.log(`Key: Cleared notes at [${selectedRow}, ${selectedCol}]`);
-            }
-            event.preventDefault();
-        }
-        // === КОНЕЦ ОБНОВЛЕНИЙ ===
-        // Можно добавить обработку стрелок для навигации
-
-        if (needsRender) { // Перерисовываем, если были изменения
-            renderCell(selectedRow, selectedCol);
-        }
+        if (needsRender) { renderCell(selectedRow, selectedCol); }
     });
 
-    // Клик по кнопке "Проверить" (без изменений)
+    // Клик по кнопке "Проверить"
     checkButton.addEventListener('click', () => {
         console.log("Нажата кнопка 'Проверить'");
-        clearErrors();
-        if (!currentSolution || !userGrid) return;
+        clearErrors(); if (!currentSolution || !userGrid) return;
         let allCorrect = true; let boardComplete = true;
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
+        for (let r = 0; r < 9; r++) { for (let c = 0; c < 9; c++) {
                 const cellData = userGrid[r][c]; const userValue = cellData.value;
                 const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
                 if (!cellElement) continue;
                 if (userValue === 0) { boardComplete = false; }
-                else if (!cellElement.classList.contains('given')) {
-                    const solutionValue = getSolutionValue(r, c);
-                    if (userValue !== solutionValue) { cellElement.classList.add('incorrect'); allCorrect = false; }
-                }
-            }
-        }
-        if (allCorrect && boardComplete) { statusMessageElement.textContent = "Поздравляем! Судоку решено верно!"; statusMessageElement.className = 'correct'; clearSelection(); }
-        else if (!allCorrect) { statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены."; statusMessageElement.className = 'incorrect-msg'; }
+                else if (!cellElement.classList.contains('given')) { const solutionValue = getSolutionValue(r, c); if (userValue !== solutionValue) { cellElement.classList.add('incorrect'); allCorrect = false; } }
+        }}
+        if (allCorrect && boardComplete) {
+            statusMessageElement.textContent = "Поздравляем! Судоку решено верно!"; statusMessageElement.className = 'correct';
+            stopTimer(); // Останавливаем таймер при успехе
+            clearSelection();
+        } else if (!allCorrect) { statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены."; statusMessageElement.className = 'incorrect-msg'; }
         else { statusMessageElement.textContent = "Пока все верно, но поле не заполнено."; statusMessageElement.className = ''; }
     });
 
-    // Клик по кнопке "Новая игра" - показывает модальное окно (без изменений)
+    // Клик по кнопке "Новая игра"
     newGameButton.addEventListener('click', () => { console.log("Нажата кнопка 'Новая игра'"); showDifficultyModal(); });
 
-    // Обработка кликов внутри модального окна выбора сложности (без изменений)
+    // Обработка кликов внутри модального окна выбора сложности
     if(modalButtonsContainer) {
         modalButtonsContainer.addEventListener('click', (event) => {
-            const target = event.target.closest('button');
-             if(!target) return;
+            const target = event.target.closest('button'); if(!target) return;
             if (target.classList.contains('difficulty-button')) {
                 const difficulty = target.dataset.difficulty;
                 if (difficulty) { console.log(`Выбрана сложность: ${difficulty}`); hideDifficultyModal(); initGame(difficulty); }
@@ -380,17 +289,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else { console.error("Контейнер кнопок модального окна не найден."); }
 
-    // Клик по оверлею для закрытия модального окна (без изменений)
+    // Клик по оверлею для закрытия модального окна
     if(modalOverlay) { modalOverlay.addEventListener('click', () => { console.log("Клик по оверлею, закрытие модального окна."); hideDifficultyModal(); }); }
     else { console.error("Оверлей модального окна не найден."); }
 
-    // --- Инициализация Telegram Web App SDK (без изменений) ---
+    // --- Инициализация Telegram Web App SDK ---
      try {
          if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready(); console.log("Telegram WebApp SDK инициализирован."); }
          else { console.log("Telegram WebApp SDK не найден."); }
      } catch (e) { console.error("Ошибка инициализации Telegram WebApp SDK:", e); }
 
-    // --- Первый запуск игры при загрузке страницы ---
-    initGame("medium"); // Начинаем со средней сложности
+    // --- Первый запуск игры ---
+    initGame("medium");
 
-}); // Конец обработчика 'DOMContentLoaded'
+}); // Конец 'DOMContentLoaded'
