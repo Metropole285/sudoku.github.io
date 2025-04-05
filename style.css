@@ -62,9 +62,10 @@ h1 {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; justify-content: center; align-items: center;
     font-size: clamp(16px, 5vw, 24px); line-height: 1;
-    /* === ДОБАВЛЕНО ЗДЕСЬ: ВСЕ ЦИФРЫ ЖИРНЫЕ === */
-    font-weight: bold;
-    /* ======================================== */
+    font-weight: bold; /* Все цифры жирные */
+    /* === ИЗМЕНЕНИЕ 2: Цвет моря для введенных цифр === */
+    color: #1d3557; /* Темно-сине-зеленый (цвет моря) по умолчанию */
+    /* ================================================ */
 }
 .cell-notes-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -76,48 +77,54 @@ h1 {
     font-size: clamp(8px, 2vw, 10px); line-height: 1; color: #555; text-align: center;
 }
 
-/* --- Стили для состояний ячеек (ИСПРАВЛЕН ПОРЯДОК) --- */
+/* --- Стили для состояний ячеек --- */
 
-/* 1. Базовый вид "given" ячейки - УБРАЛИ font-weight отсюда */
-/* .cell.given .cell-value-container { font-weight: bold; } <-- Можно удалить или оставить закомментированным */
+/* 1. Базовый вид "given" ячейки */
 .cell.given {
-    background-color: #eee; /* Базовый фон для given */
+    /* === ИЗМЕНЕНИЕ 1: Убираем фон у изначальных цифр === */
+    /* background-color: #eee; */ /* Фон теперь как у обычной ячейки */
+    /* ================================================== */
     cursor: default;
 }
+/* Возвращаем стандартный темный цвет для изначальных цифр */
+.cell.given .cell-value-container {
+    color: #333; /* Стандартный темно-серый */
+}
 
-/* 2. Подсветка строки/столбца (перекрывает фон .given) */
+
+/* 2. Подсветка строки/столбца (перекрывает фон .given, если он был) */
 .cell.highlighted {
     background-color: #e8f4ff; /* Светлее, чем selected */
 }
 
-/* 3. Неправильно введенная цифра (может перекрыть .highlighted, но не .selected) */
-.cell.incorrect .cell-value-container { color: red; }
+/* 3. Неправильно введенная цифра */
+.cell.incorrect .cell-value-container {
+    color: red !important; /* Красный цвет для цифры, важнее стандартного */
+}
 .cell.incorrect {
-     background-color: #ffdddd;
+     background-color: #ffdddd; /* Розовый фон ошибки */
 }
 
-/* 4. Выбранная пользователем ячейка (самый высокий приоритет по фону) */
-/* Должна перекрывать .given, .highlighted и .incorrect */
+/* 4. Выбранная пользователем ячейка */
 .cell.selected {
     background-color: #a7d8ff; /* Ярче, чем highlighted */
-    /* box-shadow: inset 0 0 3px #007bff; */
 }
 
 /* ===== Стили таймера ===== */
 #timer-container {
-    margin-bottom: 10px; /* Отступ снизу перед доской */
-    width: clamp(270px, 90vw, 500px); /* Ширина как у доски */
-    text-align: right; /* Выровнять текст таймера по правому краю */
+    margin-bottom: 10px;
+    width: clamp(270px, 90vw, 500px);
+    text-align: right;
 }
 
 #timer {
     font-size: 16px;
     font-weight: bold;
-    color: #555; /* Не слишком яркий цвет */
-    padding: 5px 10px; /* Небольшие отступы */
-    background-color: #e9e9e9; /* Легкий фон */
-    border-radius: 4px; /* Скругление углов */
-    display: inline-block; /* Чтобы фон не растягивался на всю ширину */
+    color: #555;
+    padding: 5px 10px;
+    background-color: #e9e9e9;
+    border-radius: 4px;
+    display: inline-block;
 }
 
 /* ===== Стили элементов управления ===== (без изменений) */
