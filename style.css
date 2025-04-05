@@ -100,13 +100,20 @@ h1 {
     /* box-shadow: inset 0 0 3px #007bff; */
 }
 
+#timer-container {
+    margin-bottom: 10px; /* Отступ снизу перед доской */
+    width: clamp(270px, 90vw, 500px); /* Ширина как у доски */
+    text-align: right; /* Выровнять текст таймера по правому краю */
+}
+
 #timer {
-    font-size: 1.1em; /* Немного крупнее обычного текста */
+    font-size: 16px;
     font-weight: bold;
     color: #555; /* Не слишком яркий цвет */
-    margin-bottom: 10px; /* Отступ снизу */
-    min-width: 120px; /* Чтобы ширина не скакала */
-    text-align: center; /* Центрировать текст */
+    padding: 5px 10px; /* Небольшие отступы */
+    background-color: #e9e9e9; /* Легкий фон */
+    border-radius: 4px; /* Скругление углов */
+    display: inline-block; /* Чтобы фон не растягивался на всю ширину */
 }
 
 /* ===== Стили элементов управления ===== (без изменений) */
