@@ -4,31 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Судоку</title>
+    <!-- Подключение CSS стилей -->
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем библиотеку для генерации и решения Судоку -->
-    <!-- Используем готовую, т.к. писать свою - очень сложно -->
-    <!-- Источник: https://github.com/robatron/sudoku.js -->
+    <!-- Подключение библиотеки sudoku.js (локально или с CDN) -->
+    <!-- Вариант 1: Локальный файл (рекомендуется) -->
     <script src="sudoku.js"></script>
+    <!-- Вариант 2: CDN jsDelivr (если не скачивали локально) -->
+    <!-- <script src="https://cdn.jsdelivr.net/gh/robatron/sudoku.js/sudoku.js"></script> -->
+    <!-- Подключение Telegram Web App SDK (если используется) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+    <!-- Заголовок игры -->
     <h1>Судоку</h1>
 
+    <!-- Контейнер для доски Судоку -->
     <div id="sudoku-board">
-        <!-- Ячейки будут сгенерированы JavaScript -->
+        <!-- Ячейки будут сгенерированы и добавлены сюда через JavaScript -->
     </div>
 
+    <!-- Контейнер для кнопок управления игрой -->
     <div id="controls">
         <button id="check-button">Проверить</button>
         <button id="new-game-button">Новая игра</button>
-        <!-- Для удаления цифры можно использовать Backspace/Delete на клавиатуре
-             или добавить цифровую панель ниже -->
     </div>
 
+    <!-- Элемент для вывода сообщений статуса (ошибки, успех) -->
     <div id="status-message"></div>
 
-    <!-- Простой вариант цифровой панели (опционально) -->
+    <!-- Цифровая панель для ввода -->
     <div id="numpad">
+        <!-- Кнопки для цифр 1-9 -->
         <button data-num="1">1</button>
         <button data-num="2">2</button>
         <button data-num="3">3</button>
@@ -38,11 +44,33 @@
         <button data-num="7">7</button>
         <button data-num="8">8</button>
         <button data-num="9">9</button>
-        <button id="note-toggle-button">📝</button>
+        <!-- Кнопка переключения режима заметок -->
+        <button id="note-toggle-button" title="Режим заметок (ВЫКЛ)">📝</button>
+        <!-- Кнопка стирания значения/заметок -->
         <button id="erase-button">Стереть</button>
     </div>
 
+    <!-- ==== Модальное окно выбора сложности ==== -->
+    <!-- Оверлей для затемнения/размытия фона -->
+    <div id="modal-overlay"></div>
+    <!-- Само модальное окно -->
+    <div id="difficulty-modal">
+        <h2>Выберите сложность:</h2>
+        <!-- Контейнер для кнопок внутри модального окна -->
+        <div class="modal-buttons">
+            <button class="difficulty-button" data-difficulty="easy">Лёгкий</button>
+            <button class="difficulty-button" data-difficulty="medium">Средний</button>
+            <button class="difficulty-button" data-difficulty="hard">Сложный</button>
+            <button class="difficulty-button" data-difficulty="very-hard">Очень сложный</button>
+            <button class="difficulty-button" data-difficulty="insane">Безумный</button>
+            <button class="difficulty-button" data-difficulty="inhuman">Нечеловеческий</button>
+            <!-- Кнопка отмены выбора сложности -->
+            <button id="cancel-difficulty-button">Отмена</button>
+        </div>
+    </div>
+    <!-- ======================================== -->
 
+    <!-- Подключение основного скрипта игры (ВАЖНО: в конце body) -->
     <script src="script.js"></script>
 </body>
 </html>
