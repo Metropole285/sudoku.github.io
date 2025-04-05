@@ -168,7 +168,7 @@ h1 {
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(4, auto);
     gap: 5px;
-    margin-top: 10px;
+    margin-top: 0px;
     width: clamp(200px, 70vw, 280px); /* Панель может быть поуже */
 }
 
