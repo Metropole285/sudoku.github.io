@@ -1,6 +1,5 @@
-// Убедитесь, что файл sudoku.js (или sudoku.min.js, если вы его так назвали)
-// подключен в index.html ПЕРЕД этим скриптом.
-// <script src="sudoku.js"></script> или <script src="sudoku.min.js"></script>
+// Убедитесь, что файл sudoku.js (или sudoku.min.js) подключен в index.html ПЕРЕД этим скриптом.
+// <script src="sudoku.js"></script>
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Получение ссылок на элементы DOM ---
@@ -9,324 +8,406 @@ document.addEventListener('DOMContentLoaded', () => {
     const newGameButton = document.getElementById('new-game-button');
     const statusMessageElement = document.getElementById('status-message');
     const numpad = document.getElementById('numpad');
+    const noteToggleButton = document.getElementById('note-toggle-button'); // Кнопка режима заметок
 
-    // --- Переменные для хранения состояния игры ---
-    let currentPuzzle = null; // Головоломка в виде строки (81 символ, '.' или '0' для пустых)
+    // --- Переменные состояния игры ---
+    let currentPuzzle = null; // Головоломка в виде строки
     let currentSolution = null; // Решение головоломки в виде строки
-    let userGrid = []; // Текущее состояние доски пользователя (массив 9x9)
+    let userGrid = []; // Массив 9x9 объектов { value: number, notes: Set<number> }
     let selectedCell = null; // Ссылка на выбранный DOM-элемент ячейки (<div>)
     let selectedRow = -1;    // Индекс строки выбранной ячейки
     let selectedCol = -1;    // Индекс колонки выбранной ячейки
+    let isNoteMode = false; // Флаг: включен ли режим ввода заметок
 
     // --- Инициализация новой игры ---
     function initGame() {
         console.log("Запуск initGame...");
         try {
-            // Проверка наличия библиотеки sudoku.js
+            // Проверка наличия библиотеки
             if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
                 throw new Error("Библиотека sudoku.js не загружена или неисправна.");
             }
             console.log("Библиотека sudoku найдена.");
 
-            // Генерация головоломки (уровень можно менять: 'easy', 'medium', 'hard', ...)
-            console.log("Генерация головоломки (medium)...");
-            currentPuzzle = sudoku.generate("medium");
-            console.log("Сгенерировано:", currentPuzzle);
-
-            if (!currentPuzzle) {
-                 throw new Error("Генерация не удалась (generate вернул null/пусто)");
-            }
-
-            // Получение решения для сгенерированной головоломки
-            console.log("Получение решения...");
+            // Генерация и решение
+            currentPuzzle = sudoku.generate("medium"); // Можно выбрать сложность
+            if (!currentPuzzle) throw new Error("Генерация не удалась");
             currentSolution = sudoku.solve(currentPuzzle);
-            console.log("Решение:", currentSolution);
+            if (!currentSolution) throw new Error("Не удалось найти решение");
 
-            if (!currentSolution) {
-                // Это не должно происходить для головоломок, сгенерированных этой же библиотекой
-                throw new Error("Не удалось найти решение для сгенерированной головоломки.");
-            }
+            // Инициализация userGrid объектами
+            userGrid = boardStringToObjectArray(currentPuzzle);
 
-            console.log("Преобразование в массив...");
-            userGrid = boardStringToArray(currentPuzzle); // Заполняем userGrid начальными данными
-
-            console.log("Отрисовка доски...");
-            renderBoard(); // Отображаем доску на странице
-
-            clearSelection(); // Снимаем любое предыдущее выделение
-            statusMessageElement.textContent = ''; // Очищаем статусное сообщение
+            renderBoard(); // Полная отрисовка доски
+            clearSelection(); // Сброс выделения
+            statusMessageElement.textContent = ''; // Очистка статуса
             statusMessageElement.className = '';
+            isNoteMode = false; // Выключаем режим заметок по умолчанию
+            updateNoteToggleButtonState(); // Обновляем вид кнопки заметок
             console.log("Новая игра успешно инициализирована.");
 
         } catch (error) {
             console.error("ОШИБКА в initGame:", error);
-            // Выводим сообщение об ошибке пользователю
             statusMessageElement.textContent = "Ошибка генерации судоку! " + error.message;
             statusMessageElement.className = 'incorrect-msg';
-            // Очищаем доску, если генерация не удалась
             boardElement.innerHTML = '<p style="color: red; text-align: center;">Не удалось загрузить игру.</p>';
         }
     }
 
-    // --- Отрисовка доски на основе userGrid ---
-    function renderBoard() {
-        boardElement.innerHTML = ''; // Очищаем предыдущее состояние доски
-        if (!userGrid || userGrid.length !== 9) {
-             console.error("Некорректные данные для отрисовки доски (userGrid)");
-             boardElement.innerHTML = '<p style="color: red;">Ошибка данных доски.</p>';
-             return;
-        }
-
-        // Создаем 81 ячейку (9 рядов по 9 колонок)
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                const cell = document.createElement('div');
-                cell.classList.add('cell');
-                // Сохраняем координаты в data-атрибутах для легкого доступа
-                cell.dataset.row = r;
-                cell.dataset.col = c;
-
-                const value = userGrid[r][c]; // Берем значение из нашего массива
-
-                // Отображаем цифру, если она не 0
-                if (value !== 0) {
-                    cell.textContent = value;
-                    // Проверяем, была ли эта цифра в изначальной головоломке
-                    const puzzleChar = currentPuzzle[r * 9 + c];
-                    if (puzzleChar !== '.' && puzzleChar !== '0') {
-                        // Если да, добавляем класс 'given', чтобы сделать ее некликабельной и стилизовать
-                        cell.classList.add('given');
-                    }
-                } else {
-                    cell.textContent = ''; // Оставляем пустым
-                }
-
-                // === Добавляем классы для толстых границ блоков 3x3 ===
-                // Сначала убираем классы от возможной предыдущей отрисовки
-                cell.classList.remove('thick-border-bottom', 'thick-border-right');
-                // Добавляем класс для толстой правой границы (после 3 и 6 колонки)
-                if ((c + 1) % 3 === 0 && c < 8) { // c < 8 чтобы не трогать внешнюю границу доски
-                    cell.classList.add('thick-border-right');
-                }
-                // Добавляем класс для толстой нижней границы (после 3 и 6 ряда)
-                if ((r + 1) % 3 === 0 && r < 8) { // r < 8 чтобы не трогать внешнюю границу доски
-                    cell.classList.add('thick-border-bottom');
-                }
-                // ========================================================
-
-                boardElement.appendChild(cell); // Добавляем созданную ячейку на доску
-            }
-        }
-    }
-
-    // --- Вспомогательные функции ---
-
-    // Преобразование строки головоломки (81 символ) в массив 9x9
-    function boardStringToArray(boardString) {
+    // --- Преобразование строки головоломки в массив объектов ---
+    function boardStringToObjectArray(boardString) {
         const grid = [];
         for (let r = 0; r < 9; r++) {
             grid[r] = [];
             for (let c = 0; c < 9; c++) {
                 const char = boardString[r * 9 + c];
-                // Пустые ячейки ('.') или '0' преобразуем в число 0
-                grid[r][c] = (char === '.' || char === '0') ? 0 : parseInt(char);
+                const value = (char === '.' || char === '0') ? 0 : parseInt(char);
+                // Каждая ячейка - объект со значением и набором заметок
+                grid[r][c] = {
+                    value: value,
+                    notes: new Set() // Изначально заметки пустые
+                };
             }
         }
         return grid;
     }
 
-    // Получение правильного значения для ячейки из строки-решения
-     function getSolutionValue(row, col) {
-         if (!currentSolution) return null; // На всякий случай
-         const char = currentSolution[row * 9 + col];
-         return (char === '.' || char === '0') ? 0 : parseInt(char);
-     }
-
-    // Снятие выделения с текущей выбранной ячейки
-    function clearSelection() {
-         if (selectedCell) {
-            selectedCell.classList.remove('selected'); // Убираем класс подсветки
+    // --- Отрисовка ВСЕЙ доски ---
+    function renderBoard() {
+        boardElement.innerHTML = ''; // Очищаем старую доску
+        if (!userGrid || userGrid.length !== 9) {
+             console.error("renderBoard: Некорректные данные userGrid.");
+             return;
         }
-        // Сбрасываем переменные состояния
+        // Создаем и добавляем каждую ячейку
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                const cellElement = createCellElement(r, c);
+                boardElement.appendChild(cellElement);
+            }
+        }
+        console.log("Доска перерисована.");
+    }
+
+    // --- Создание DOM-элемента для ОДНОЙ ячейки ---
+    function createCellElement(r, c) {
+        // Создаем основной div ячейки
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+
+        const cellData = userGrid[r][c]; // Данные {value, notes} для этой ячейки
+
+        // Создаем контейнер для основного значения
+        const valueContainer = document.createElement('div');
+        valueContainer.classList.add('cell-value-container');
+
+        // Создаем контейнер для сетки заметок
+        const notesContainer = document.createElement('div');
+        notesContainer.classList.add('cell-notes-container');
+
+        // Определяем, что показывать: значение или заметки
+        if (cellData.value !== 0) {
+            // Показываем основное значение
+            valueContainer.textContent = cellData.value;
+            valueContainer.style.display = 'flex'; // Показать контейнер значения
+            notesContainer.style.display = 'none';  // Скрыть контейнер заметок
+            // Отмечаем, если это изначальная цифра
+            const puzzleChar = currentPuzzle[r * 9 + c];
+            if (puzzleChar !== '.' && puzzleChar !== '0') {
+                cell.classList.add('given');
+            }
+        } else if (cellData.notes.size > 0) {
+            // Показываем заметки, если они есть (и нет основного значения)
+            valueContainer.style.display = 'none';  // Скрыть контейнер значения
+            notesContainer.style.display = 'grid'; // Показать контейнер заметок
+            // Заполняем сетку 3x3 для заметок
+            notesContainer.innerHTML = ''; // Очищаем предыдущие заметки
+            for (let n = 1; n <= 9; n++) {
+                const noteDigit = document.createElement('div');
+                noteDigit.classList.add('note-digit');
+                noteDigit.textContent = cellData.notes.has(n) ? n : ''; // Показать цифру, если она есть в Set
+                notesContainer.appendChild(noteDigit);
+            }
+        } else {
+            // Ячейка пуста (ни значения, ни заметок)
+            valueContainer.textContent = '';
+            valueContainer.style.display = 'flex'; // Показать пустой контейнер значения
+            notesContainer.style.display = 'none';  // Скрыть контейнер заметок
+        }
+
+        // Добавляем оба контейнера (один из них будет скрыт через CSS)
+        cell.appendChild(valueContainer);
+        cell.appendChild(notesContainer);
+
+        // Добавляем классы для толстых границ блоков
+        cell.classList.remove('thick-border-bottom', 'thick-border-right');
+        if ((c + 1) % 3 === 0 && c < 8) cell.classList.add('thick-border-right');
+        if ((r + 1) % 3 === 0 && r < 8) cell.classList.add('thick-border-bottom');
+
+        return cell; // Возвращаем созданный элемент
+    }
+
+    // --- Перерисовка только ОДНОЙ измененной ячейки ---
+    function renderCell(r, c) {
+        // Находим старый DOM-элемент ячейки
+        const oldCell = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
+        if (oldCell) {
+            // Создаем новый DOM-элемент с актуальными данными
+            const newCell = createCellElement(r, c);
+            // Копируем классы состояний (selected, incorrect), если они были
+            if (oldCell.classList.contains('selected')) newCell.classList.add('selected');
+            if (oldCell.classList.contains('incorrect')) newCell.classList.add('incorrect');
+            // Если эта ячейка была выбрана, обновляем ссылку selectedCell
+            if (selectedRow === r && selectedCol === c) {
+                selectedCell = newCell;
+            }
+            // Заменяем старый элемент новым в DOM
+            oldCell.replaceWith(newCell);
+        } else {
+            console.warn(`renderCell: Не найдена ячейка [${r}, ${c}] для перерисовки.`);
+        }
+    }
+
+    // --- Вспомогательные функции ---
+
+    // Получение правильного значения из строки-решения
+    function getSolutionValue(row, col) {
+        if (!currentSolution) return null;
+        const char = currentSolution[row * 9 + col];
+        return (char === '.' || char === '0') ? 0 : parseInt(char);
+    }
+
+    // Снятие выделения с ячейки
+    function clearSelection() {
+        if (selectedCell) {
+            selectedCell.classList.remove('selected');
+        }
         selectedCell = null;
         selectedRow = -1;
         selectedCol = -1;
     }
 
-    // Очистка подсветки ошибок и статусного сообщения
+    // Очистка подсветки ошибок
     function clearErrors() {
-        // Убираем класс 'incorrect' со всех ячеек
         boardElement.querySelectorAll('.cell.incorrect').forEach(cell => {
             cell.classList.remove('incorrect');
         });
-        // Очищаем текстовое сообщение
-         statusMessageElement.textContent = '';
-         statusMessageElement.className = '';
+        statusMessageElement.textContent = '';
+        statusMessageElement.className = '';
+    }
+
+    // Обновление вида кнопки режима заметок
+    function updateNoteToggleButtonState() {
+        if (isNoteMode) {
+            noteToggleButton.classList.add('active'); // Добавляем класс для CSS
+            noteToggleButton.title = "Режим заметок (ВКЛ)"; // Всплывающая подсказка
+        } else {
+            noteToggleButton.classList.remove('active'); // Убираем класс
+            noteToggleButton.title = "Режим заметок (ВЫКЛ)";
+        }
     }
 
     // --- Обработчики событий ---
 
-    // Клик по доске Судоку (для выбора ячейки)
+    // Клик по доске (выбор ячейки)
     boardElement.addEventListener('click', (event) => {
-        const target = event.target; // Элемент, по которому кликнули
+        const target = event.target.closest('.cell'); // Ищем ячейку, даже если кликнули на дочерний элемент
+        if (!target) { // Клик мимо ячеек
+             clearSelection();
+             return;
+        }
 
-        // Проверяем, что клик был по ячейке (.cell) и она не изначальная (.given)
-        if (target.classList.contains('cell') && !target.classList.contains('given')) {
-            clearSelection(); // Снять выделение с предыдущей
-            // Запомнить новую ячейку и ее координаты
-            selectedCell = target;
+        // Проверяем, что ячейка не изначальная
+        if (!target.classList.contains('given')) {
+            clearSelection(); // Снять старое выделение
+            selectedCell = target; // Запомнить новую
             selectedRow = parseInt(target.dataset.row);
             selectedCol = parseInt(target.dataset.col);
-            selectedCell.classList.add('selected'); // Добавить класс для CSS-стиля выделения
-            clearErrors(); // Убрать подсветку ошибок, если она была
+            selectedCell.classList.add('selected'); // Выделить
+            clearErrors();
         } else {
-            // Если кликнули мимо изменяемой ячейки (на рамку, фон, .given)
+            // Кликнули на изначальную цифру
             clearSelection(); // Просто снять выделение
         }
     });
 
-    // Клик по цифровой панели (ввод цифры или стирание)
+    // Клик по цифровой панели (ввод/стирание/переключение режима)
     numpad.addEventListener('click', (event) => {
-        // Игнорируем клик, если ни одна ячейка не выбрана
-        if (!selectedCell) {
-             console.log("Клик по numpad, но ячейка не выбрана.");
-             return;
-        }
-
-        // Находим кнопку, по которой кликнули (даже если клик был по тексту внутри)
         const button = event.target.closest('button');
         if (!button) return; // Клик мимо кнопки
 
-        clearErrors(); // Убираем подсветку ошибок при вводе/стирании
+        // --- Обработка кнопки переключения режима ---
+        if (button.id === 'note-toggle-button') {
+            isNoteMode = !isNoteMode; // Переключаем режим
+            updateNoteToggleButtonState(); // Обновляем вид кнопки
+            console.log("Режим заметок:", isNoteMode ? "ВКЛ" : "ВЫКЛ");
+            return; // Больше ничего не делаем
+        }
+
+        // --- Обработка остальных кнопок (только если ячейка выбрана) ---
+        if (!selectedCell) {
+            console.log("Клик по кнопке, но ячейка не выбрана.");
+            return;
+        }
+
+        clearErrors(); // Убираем ошибки при любом действии с ячейкой
+        const cellData = userGrid[selectedRow][selectedCol]; // Получаем данные {value, notes}
 
         if (button.id === 'erase-button') {
-            // --- Нажата кнопка "Стереть" ---
-            selectedCell.textContent = ''; // Очищаем видимое содержимое ячейки
-            // Обновляем наш внутренний массив, записывая 0
-            if(selectedRow !== -1 && selectedCol !== -1) {
-                 userGrid[selectedRow][selectedCol] = 0;
-                 console.log(`Стёрто значение в [${selectedRow}, ${selectedCol}]`);
+            // --- Стирание ---
+            if (cellData.value !== 0 || cellData.notes.size > 0) { // Стираем только если есть что стирать
+                cellData.value = 0;
+                cellData.notes.clear();
+                renderCell(selectedRow, selectedCol); // Перерисовать ячейку
+                console.log(`Очищена ячейка [${selectedRow}, ${selectedCol}]`);
             }
         } else if (button.dataset.num) {
-            // --- Нажата кнопка с цифрой (у нее есть атрибут data-num) ---
-            const num = parseInt(button.dataset.num); // Получаем цифру
-
-            // Записываем цифру в ячейку на экране
-            selectedCell.textContent = num;
-            // Обновляем наш внутренний массив
-            if(selectedRow !== -1 && selectedCol !== -1) {
-                 userGrid[selectedRow][selectedCol] = num;
-                 console.log(`Введено ${num} в [${selectedRow}, ${selectedCol}]`);
+            // --- Ввод цифры ---
+            const num = parseInt(button.dataset.num);
+            if (isNoteMode) {
+                // --- Режим заметок: добавляем/удаляем заметку (toggle) ---
+                // Нельзя добавлять заметки, если уже есть основное значение
+                if (cellData.value === 0) {
+                     if (cellData.notes.has(num)) {
+                        cellData.notes.delete(num);
+                        console.log(`Удалена заметка ${num} в [${selectedRow}, ${selectedCol}]`);
+                    } else {
+                        cellData.notes.add(num);
+                        console.log(`Добавлена заметка ${num} в [${selectedRow}, ${selectedCol}]`);
+                    }
+                }
+            } else {
+                // --- Обычный режим: устанавливаем основное значение ---
+                // Если значение уже такое, стираем его (повторный клик)
+                if (cellData.value === num) {
+                     cellData.value = 0;
+                     console.log(`Удалено значение ${num} в [${selectedRow}, ${selectedCol}]`);
+                } else {
+                     cellData.value = num;
+                     cellData.notes.clear(); // Стираем заметки при установке значения
+                     console.log(`Введено значение ${num} в [${selectedRow}, ${selectedCol}]`);
+                }
+                // Опционально: снять выделение после ввода
+                // clearSelection();
             }
-            // Опционально: снять выделение после ввода?
-            // clearSelection();
+             renderCell(selectedRow, selectedCol); // Перерисовать ячейку
         }
     });
 
-     // Обработка нажатий клавиш (для удобства на десктопе)
+     // Обработка нажатий клавиш
     document.addEventListener('keydown', (event) => {
-        // Игнорируем, если ячейка не выбрана
-        if (!selectedCell) return;
+        if (!selectedCell) return; // Игнорируем, если ячейка не выбрана
 
-        clearErrors(); // Убираем ошибки при вводе
+        const cellData = userGrid[selectedRow][selectedCol];
+        let needsRender = false; // Флаг, нужно ли перерисовывать ячейку
 
-        // Если нажата цифра от 1 до 9
+        // Цифры 1-9
         if (event.key >= '1' && event.key <= '9') {
+            clearErrors();
             const num = parseInt(event.key);
-            selectedCell.textContent = num;
-            if(selectedRow !== -1 && selectedCol !== -1) userGrid[selectedRow][selectedCol] = num;
-            console.log(`Введено ${num} с клавиатуры в [${selectedRow}, ${selectedCol}]`);
+            if (isNoteMode) {
+                if (cellData.value === 0) { // Только если нет основного значения
+                    if (cellData.notes.has(num)) cellData.notes.delete(num);
+                    else cellData.notes.add(num);
+                    needsRender = true;
+                }
+            } else {
+                if (cellData.value !== num) { // Ставим новое значение
+                     cellData.value = num;
+                     cellData.notes.clear();
+                     needsRender = true;
+                } else { // Повторное нажатие той же цифры - стираем
+                    cellData.value = 0;
+                    needsRender = true;
+                }
+            }
         }
-        // Если нажат Backspace или Delete
+        // Стирание
         else if (event.key === 'Backspace' || event.key === 'Delete') {
-            selectedCell.textContent = '';
-            if(selectedRow !== -1 && selectedCol !== -1) userGrid[selectedRow][selectedCol] = 0;
-             console.log(`Стёрто значение в [${selectedRow}, ${selectedCol}] с клавиатуры`);
+            clearErrors();
+            if (cellData.value !== 0 || cellData.notes.size > 0) {
+                cellData.value = 0;
+                cellData.notes.clear();
+                needsRender = true;
+            }
         }
-        // Можно добавить обработку стрелок для навигации (опционально)
-        // else if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        //     event.preventDefault(); // Чтобы страница не скроллилась
-        //     // TODO: Реализовать перемещение selectedCell
-        // }
+        // Переключение режима заметок клавишей 'N' или 'Т' (русская)
+        else if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') {
+             isNoteMode = !isNoteMode;
+             updateNoteToggleButtonState();
+             event.preventDefault(); // Предотвратить ввод буквы
+             console.log("Режим заметок переключен клавиатурой:", isNoteMode ? "ВКЛ" : "ВЫКЛ");
+        }
+
+        // Перерисовываем ячейку, если были изменения
+        if (needsRender) {
+            renderCell(selectedRow, selectedCol);
+        }
     });
 
-    // Клик по кнопке "Проверить"
+    // Клик по кнопке "Проверить" (проверяет только основные значения)
     checkButton.addEventListener('click', () => {
         console.log("Нажата кнопка 'Проверить'");
-        clearErrors(); // Сначала убираем старую подсветку ошибок
-        if (!currentSolution || !userGrid) {
-             console.error("Нет данных для проверки!");
-             statusMessageElement.textContent = "Ошибка: нет данных для проверки.";
-             statusMessageElement.className = 'incorrect-msg';
-             return;
-        }
+        clearErrors();
+        if (!currentSolution || !userGrid) return;
 
-        let allCorrect = true; // Флаг: все ли заполненные ячейки верны
-        let boardComplete = true; // Флаг: все ли ячейки заполнены
+        let allCorrect = true;
+        let boardComplete = true;
 
-        // Проходим по всем ячейкам доски
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
-                const userValue = userGrid[r][c]; // Значение, введенное пользователем
+                const cellData = userGrid[r][c];
+                const userValue = cellData.value; // Проверяем только .value
                 const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-                if (!cellElement) continue; // Пропускаем, если элемент не найден (не должно быть)
+                if (!cellElement) continue;
 
-                if (userValue === 0) {
-                    boardComplete = false; // Нашли пустую ячейку - доска не завершена
-                } else if (!cellElement.classList.contains('given')) {
-                    // Если ячейка заполнена пользователем (не изначальная)
-                    const solutionValue = getSolutionValue(r, c); // Получаем правильное значение
+                if (userValue === 0) { // Если нет основного значения - не завершено
+                    boardComplete = false;
+                } else if (!cellElement.classList.contains('given')) { // Проверяем только введенные
+                    const solutionValue = getSolutionValue(r, c);
                     if (userValue !== solutionValue) {
-                        // Если значения не совпадают - это ошибка
-                        cellElement.classList.add('incorrect'); // Подсвечиваем ячейку
-                        allCorrect = false; // Ставим флаг, что есть ошибки
+                        cellElement.classList.add('incorrect'); // Подсветить ошибку
+                        allCorrect = false;
                     }
                 }
             }
         }
-
-        // Формируем сообщение для пользователя по результатам проверки
+        // Вывод результата
         if (allCorrect && boardComplete) {
             statusMessageElement.textContent = "Поздравляем! Судоку решено верно!";
-            statusMessageElement.className = 'correct'; // Зеленый цвет
-            clearSelection(); // Снимаем выделение при полном успехе
-            // Можно добавить "замораживание" доски здесь
+            statusMessageElement.className = 'correct';
+            clearSelection();
         } else if (!allCorrect) {
             statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены.";
-            statusMessageElement.className = 'incorrect-msg'; // Красный цвет
-        } else { // allCorrect = true, но boardComplete = false
+            statusMessageElement.className = 'incorrect-msg';
+        } else {
              statusMessageElement.textContent = "Пока все верно, но поле не заполнено до конца.";
-             statusMessageElement.className = ''; // Обычный цвет
+             statusMessageElement.className = '';
         }
     });
 
     // Клик по кнопке "Новая игра"
     newGameButton.addEventListener('click', () => {
-        // Спрашиваем подтверждение у пользователя
         if (window.confirm("Начать новую игру? Текущий прогресс будет потерян.")) {
-            console.log("Нажата кнопка 'Новая игра'");
-            initGame(); // Запускаем инициализацию заново
-        } else {
-            console.log("Новая игра отменена пользователем.");
+            initGame();
         }
     });
 
-    // --- Инициализация Telegram Web App (если используется) ---
+    // --- Инициализация Telegram Web App SDK ---
      try {
         if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.ready(); // Сообщаем Telegram, что приложение готово
-            // window.Telegram.WebApp.expand(); // Раскомментируйте, если хотите развернуть на весь экран
+            window.Telegram.WebApp.ready();
             console.log("Telegram WebApp SDK инициализирован.");
         } else {
-            // Это нормально, если вы запускаете не внутри Telegram
-            console.log("Telegram WebApp SDK не найден (запуск вне Telegram?).");
+            console.log("Telegram WebApp SDK не найден.");
         }
      } catch (e) {
-         // Обработка возможных ошибок инициализации SDK
          console.error("Ошибка инициализации Telegram WebApp SDK:", e);
      }
 
-    // --- Первый запуск игры при загрузке страницы ---
+    // --- Первый запуск игры при загрузке ---
     initGame();
 
-}); // Конец обработчика 'DOMContentLoaded'
+}); // Конец 'DOMContentLoaded'
