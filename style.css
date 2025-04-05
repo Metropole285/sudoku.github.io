@@ -32,7 +32,21 @@ h1 {
     margin-bottom: 15px; /* Отступ снизу */
     background-color: white; /* Белый фон ячеек */
     overflow: hidden; /* Обрезать все, что может выйти за рамки */
+    /* Добавим transition для плавного размытия/затемнения при появлении модалки */
+    transition: filter 0.3s ease-in-out;
 }
+
+/* Дополнительный класс для размытия фона при активном модальном окне */
+body.modal-active #sudoku-board,
+body.modal-active #controls,
+body.modal-active #status-message,
+body.modal-active #numpad,
+body.modal-active h1 {
+    /* filter: blur(3px) brightness(0.8); */ /* Размытие + затемнение */
+    /* filter не очень хорошо работает с grid, может тормозить */
+    /* Альтернатива - использовать оверлей */
+}
+
 
 /* --- Стили ячеек и их границ --- */
 .cell {
@@ -116,8 +130,7 @@ h1 {
 /* Выбранная пользователем ячейка */
 .cell.selected {
     background-color: #a7d8ff; /* Светло-голубой фон */
-    /* Можно добавить эффект, например, для всей ячейки */
-    /* box-shadow: inset 0 0 3px #007bff; */
+    /* box-shadow: inset 0 0 3px #007bff; */ /* Опциональный эффект */
 }
 /* Неправильно введенная цифра (после проверки) */
 .cell.incorrect .cell-value-container { /* Стилизуем контейнер значения */
@@ -132,7 +145,7 @@ h1 {
 #controls {
     display: flex; /* Расположить кнопки в ряд */
     gap: 10px; /* Пространство между кнопками */
-    margin-bottom: 5px; /* Отступ снизу */
+    margin-bottom: 5px; /* Уменьшенный отступ снизу */
 }
 
 #controls button {
@@ -151,9 +164,9 @@ h1 {
 
 /* ===== Стили для сообщения о статусе ===== */
 #status-message {
-    margin-top: 5px;
+    margin-top: 2px; /* Уменьшенный отступ сверху */
     font-size: 16px;
-    min-height: 20px; /* Зарезервировать место */
+    min-height: 18px; /* Уменьшенный резерв высоты */
     font-weight: bold;
     text-align: center;
 }
@@ -168,7 +181,7 @@ h1 {
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(4, auto);
     gap: 5px;
-    margin-top: 0px;
+    margin-top: 5px; /* Уменьшенный отступ сверху */
     width: clamp(200px, 70vw, 280px); /* Панель может быть поуже */
 }
 
@@ -179,14 +192,13 @@ h1 {
     cursor: pointer;
     border: 1px solid #ccc;
     border-radius: 5px;
-    background-color: #fff;
+    background-color: #fff; /* Белый фон */
     transition: background-color 0.2s, box-shadow 0.2s;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent; /* Убрать подсветку на мобильных */
 }
 #numpad button:hover { background-color: #eee; }
 #numpad button:active { background-color: #ddd; }
 
-/* Позиционирование кнопок 1-9 стандартное */
 /* Позиционирование кнопки "Заметки" */
 #note-toggle-button {
     grid-column: 1 / 2; /* Первая колонка */
@@ -205,4 +217,97 @@ h1 {
 #note-toggle-button.active {
     background-color: #a7d8ff; /* Такой же цвет, как у выделенной ячейки */
     box-shadow: inset 0 0 4px rgba(0,0,0,0.3); /* Внутренняя тень */
+}
+
+/* ===== Стили для модального окна сложности ===== */
+
+#modal-overlay {
+    position: fixed; /* Позиционирование относительно окна браузера */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Полупрозрачный черный фон */
+    backdrop-filter: blur(3px); /* Эффект размытия фона */
+    -webkit-backdrop-filter: blur(3px); /* Для Safari */
+    z-index: 100; /* Должен быть выше основного контента */
+    display: none; /* Скрыт по умолчанию */
+    opacity: 0; /* Начальная прозрачность для анимации */
+    transition: opacity 0.3s ease-in-out; /* Плавное появление */
+    cursor: pointer; /* Показать, что можно кликнуть для закрытия */
+}
+/* Стиль для видимого оверлея */
+#modal-overlay.visible {
+    display: block;
+    opacity: 1;
+}
+
+#difficulty-modal {
+    position: fixed; /* Позиционирование относительно окна браузера */
+    top: 50%; /* Центрирование по вертикали */
+    left: 50%; /* Центрирование по горизонтали */
+    transform: translate(-50%, -50%) scale(0.95); /* Начальное состояние для анимации */
+    background-color: white;
+    padding: 25px 35px;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+    z-index: 101; /* Должен быть выше оверлея */
+    display: none; /* Скрыт по умолчанию */
+    text-align: center;
+    opacity: 0; /* Начальная прозрачность для анимации */
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; /* Анимация появления */
+}
+/* Стиль для видимого модального окна */
+#difficulty-modal.visible {
+     display: block;
+     opacity: 1;
+     transform: translate(-50%, -50%) scale(1); /* Конечное состояние анимации */
+}
+
+
+#difficulty-modal h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+#difficulty-modal .modal-buttons {
+    display: flex;
+    flex-direction: column; /* Кнопки друг под другом */
+    gap: 10px; /* Отступы между кнопками */
+}
+
+#difficulty-modal .modal-buttons button {
+    padding: 12px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    color: #333;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+#difficulty-modal .modal-buttons button:hover {
+    background-color: #e9ecef;
+    border-color: #bbb;
+}
+
+/* Выделяем кнопки сложности */
+#difficulty-modal .modal-buttons button.difficulty-button {
+    background-color: #e7f3ff;
+    border-color: #b8d6f3;
+}
+#difficulty-modal .modal-buttons button.difficulty-button:hover {
+    background-color: #cfe4fa;
+    border-color: #a1c3e6;
+}
+
+/* Кнопка отмены */
+#difficulty-modal .modal-buttons #cancel-difficulty-button {
+    margin-top: 10px; /* Небольшой отступ сверху */
+    background-color: #f1f1f1;
+}
+#difficulty-modal .modal-buttons #cancel-difficulty-button:hover {
+    background-color: #e1e1e1;
 }
