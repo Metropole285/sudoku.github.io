@@ -132,7 +132,7 @@ h1 {
 #controls {
     display: flex; /* Расположить кнопки в ряд */
     gap: 10px; /* Пространство между кнопками */
-    margin-bottom: 15px; /* Отступ снизу */
+    margin-bottom: 5px; /* Отступ снизу */
 }
 
 #controls button {
