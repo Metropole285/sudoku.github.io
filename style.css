@@ -5,126 +5,100 @@ body {
     flex-direction: column;
     align-items: center;
     margin: 0;
-    padding: 10px; /* Небольшой отступ по краям */
-    background-color: #f0f0f0; /* Светло-серый фон */
-    touch-action: manipulation; /* Предотвращает зум по двойному тапу на мобильных */
-    min-height: 100vh; /* Занимает минимум всю высоту экрана */
-    box-sizing: border-box; /* padding включается в общую высоту/ширину */
+    padding: 10px;
+    background-color: #f0f0f0;
+    touch-action: manipulation;
+    min-height: 100vh;
+    box-sizing: border-box;
 }
 
 h1 {
-    margin-top: 0; /* Убрать стандартный верхний отступ */
+    margin-top: 0;
     margin-bottom: 15px;
-    color: #333; /* Темно-серый цвет текста */
+    color: #333;
 }
 
 /* ===== Стили доски Судоку ===== */
 #sudoku-board {
     display: grid;
-    /* Сетка 9x9 с адаптивными размерами ячеек */
     grid-template-columns: repeat(9, minmax(30px, 10vw));
     grid-template-rows: repeat(9, minmax(30px, 10vw));
-    /* Ограничение размера доски для больших и маленьких экранов */
     width: clamp(270px, 90vw, 500px);
     height: clamp(270px, 90vw, 500px);
-    /* Толстая черная рамка вокруг всей доски */
     border: 3px solid black;
-    margin-bottom: 15px; /* Отступ снизу */
-    background-color: white; /* Белый фон ячеек */
-    overflow: hidden; /* Обрезать все, что может выйти за рамки */
+    margin-bottom: 15px;
+    background-color: white;
+    overflow: hidden;
     transition: filter 0.3s ease-in-out;
 }
 
 /* --- Стили ячеек и их границ --- */
 .cell {
-    display: flex; /* Используем flex, хотя содержимое теперь абсолютно позиционировано */
+    display: flex;
     justify-content: center;
     align-items: center;
-    /* Базовая тонкая серая граница */
-    border: 1px solid #ccc;
-    cursor: pointer; /* Указатель при наведении на пустые ячейки */
-    box-sizing: border-box; /* Границы включаются в размер ячейки */
-    /* Предотвращение выделения текста цифр */
+    border: 1px solid #ccc; /* Базовая тонкая серая граница */
+    cursor: pointer;
+    box-sizing: border-box;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    position: relative; /* Важно для абсолютного позиционирования дочерних контейнеров */
-    overflow: hidden; /* Скрыть все, что выходит за рамки ячейки */
+    position: relative;
+    overflow: hidden;
     transition: background-color 0.1s ease-in-out; /* Плавный переход фона */
 }
 
-/* Убираем "двойные" тонкие линии внутри блоков */
+/* Убираем "двойные" тонкие линии */
 .cell:nth-child(n+10) { border-top: none; }
 .cell:not(:nth-child(9n+1)) { border-left: none; }
 
-/* Толстые черные линии для границ блоков 3x3 */
-.thick-border-bottom {
-     border-bottom-width: 2px !important;
-     border-bottom-color: black !important;
-}
-.thick-border-right {
-     border-right-width: 2px !important;
-     border-right-color: black !important;
-}
+/* Толстые черные линии для границ блоков */
+.thick-border-bottom { border-bottom-width: 2px !important; border-bottom-color: black !important; }
+.thick-border-right { border-right-width: 2px !important; border-right-color: black !important; }
 
-/* --- Контейнеры внутри ячейки для числа и заметок --- */
+/* --- Контейнеры внутри ячейки --- */
 .cell-value-container {
-    position: absolute; /* Позиционируем абсолютно внутри .cell */
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    display: flex; /* Используем для центрирования числа */
-    justify-content: center;
-    align-items: center;
-    font-size: clamp(16px, 5vw, 24px); /* Размер для основной цифры */
-    line-height: 1; /* Убрать лишнюю высоту строки */
-    font-weight: normal; /* Обычный шрифт для пользовательского ввода */
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; justify-content: center; align-items: center;
+    font-size: clamp(16px, 5vw, 24px); line-height: 1; font-weight: normal;
 }
-
 .cell-notes-container {
-    position: absolute; /* Позиционируем абсолютно внутри .cell */
-    top: 0; left: 0;
-    width: 100%; /* Занимает всю ячейку для сетки */
-    height: 100%;
-    display: grid; /* Сетка 3x3 для заметок */
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 0px; /* Без отступов */
-    padding: 1px; /* Очень маленький внутренний отступ */
-    box-sizing: border-box;
-    display: none; /* По умолчанию скрыт */
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 0px; padding: 1px; box-sizing: border-box; display: none;
 }
-
 .note-digit {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: clamp(8px, 2vw, 10px); /* Значительно меньший размер */
-    line-height: 1;
-    color: #555; /* Серый цвет для заметок */
-    text-align: center;
+    display: flex; justify-content: center; align-items: center;
+    font-size: clamp(8px, 2vw, 10px); line-height: 1; color: #555; text-align: center;
 }
 
+/* --- Стили для состояний ячеек (ИСПРАВЛЕН ПОРЯДОК) --- */
 
-/* --- Стили для состояний ячеек --- */
-/* Изначально заданные цифры */
+/* 1. Базовый вид "given" ячейки */
 .cell.given .cell-value-container { font-weight: bold; }
-.cell.given { background-color: #eee; cursor: default; }
-
-/* ! НОВЫЙ СТИЛЬ: Подсветка строки/столбца */
-.cell.highlighted {
-    background-color: #e8f4ff; /* Очень светло-голубой (или другой неяркий цвет, например, #f0f0f0) */
+.cell.given {
+    background-color: #eee; /* Базовый фон для given */
+    cursor: default;
 }
 
-/* Выбранная пользователем ячейка (должна быть поверх highlighted) */
+/* 2. Подсветка строки/столбца (перекрывает фон .given) */
+.cell.highlighted {
+    background-color: #e8f4ff; /* Светлее, чем selected */
+}
+
+/* 3. Неправильно введенная цифра (может перекрыть .highlighted, но не .selected) */
+.cell.incorrect .cell-value-container { color: red; }
+.cell.incorrect {
+     background-color: #ffdddd;
+}
+
+/* 4. Выбранная пользователем ячейка (самый высокий приоритет по фону) */
+/* Должна перекрывать .given, .highlighted и .incorrect */
 .cell.selected {
-    background-color: #a7d8ff; /* Светло-голубой фон */
+    background-color: #a7d8ff; /* Ярче, чем highlighted */
     /* box-shadow: inset 0 0 3px #007bff; */
 }
-
-/* Неправильно введенная цифра (после проверки) */
-.cell.incorrect .cell-value-container { color: red; }
-.cell.incorrect { background-color: #ffdddd; }
 
 
 /* ===== Стили элементов управления ===== (без изменений) */
