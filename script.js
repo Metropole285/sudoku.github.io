@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMessageElement = document.getElementById('status-message');
     const numpad = document.getElementById('numpad');
     const noteToggleButton = document.getElementById('note-toggle-button');
-    // Элементы модального окна
     const difficultyModal = document.getElementById('difficulty-modal');
     const modalOverlay = document.getElementById('modal-overlay');
     const modalButtonsContainer = difficultyModal.querySelector('.modal-buttons');
@@ -18,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Переменные состояния игры ---
     let currentPuzzle = null;
     let currentSolution = null;
-    let userGrid = []; // Массив 9x9 объектов { value: number, notes: Set<number> }
+    let userGrid = [];
     let selectedCell = null;
     let selectedRow = -1;
     let selectedCol = -1;
@@ -26,23 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Инициализация новой игры ---
     function initGame(difficulty = "medium") { /* ... (код без изменений) ... */ }
-
     // --- Функции для модального окна ---
     function showDifficultyModal() { /* ... (код без изменений) ... */ }
     function hideDifficultyModal() { /* ... (код без изменений) ... */ }
-
     // --- Преобразование строки в массив объектов ---
     function boardStringToObjectArray(boardString) { /* ... (код без изменений) ... */ }
-
     // --- Отрисовка ВСЕЙ доски ---
     function renderBoard() { /* ... (код без изменений) ... */ }
-
     // --- Создание DOM-элемента для ОДНОЙ ячейки ---
     function createCellElement(r, c) { /* ... (код без изменений) ... */ }
-
     // --- Перерисовка ОДНОЙ ячейки ---
     function renderCell(r, c) { /* ... (код без изменений) ... */ }
-
     // --- Вспомогательные функции ---
     function getSolutionValue(row, col) { /* ... (код без изменений) ... */ }
     function clearSelection() { /* ... (код без изменений) ... */ }
@@ -51,22 +44,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Обработчики событий ---
 
-    // Клик по доске (выбор ячейки + подсветка строки/столбца)
+    // ! ИЗМЕНЕНИЕ: Клик по доске (только устанавливает выделение, не снимает)
     boardElement.addEventListener('click', (event) => {
         const target = event.target.closest('.cell'); // Ищем ячейку
-        if (!target) { // Клик мимо ячеек (внутри boardElement, но не на cell)
-             // Не снимаем выделение здесь, чтобы можно было кликать на numpad
-             // clearSelection(); // <- УБИРАЕМ это отсюда
-             return;
+        if (!target) {
+            // Клик внутри доски, но мимо ячейки - ничего не делаем со снятием выделения
+            return;
         }
 
-        // ! ИЗМЕНЕНИЕ: Проверяем, кликнули ли по УЖЕ выбранной ячейке
+        // Если кликнули по той же ячейке, ничего не делаем (выделение уже есть или снимется общим обработчиком)
         if (selectedCell === target) {
-            clearSelection(); // Снимаем выделение при повторном клике
-            return; // Выходим
+            return;
         }
 
-        // --- Продолжаем, если клик был по НОВОЙ ячейке ---
+        // --- Клик по НОВОЙ ячейке ---
         const r = parseInt(target.dataset.row);
         const c = parseInt(target.dataset.col);
 
@@ -95,50 +86,71 @@ document.addEventListener('DOMContentLoaded', () => {
         clearErrors(); // Убрать подсветку ошибок при выборе
     });
 
-    // Клик по цифровой панели (без изменений)
-    numpad.addEventListener('click', (event) => { /* ... (код без изменений) ... */ });
+    // Клик по цифровой панели (БЕЗ ИЗМЕНЕНИЙ - он не должен снимать выделение)
+    numpad.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        if (button.id === 'note-toggle-button') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); console.log("Режим заметок:", isNoteMode ? "ВКЛ" : "ВЫКЛ"); return; }
+        if (!selectedCell || selectedCell.classList.contains('given')) { console.log("Действие (numpad) отменено: 'given' или нет выбора."); return; }
+        clearErrors();
+        const cellData = userGrid[selectedRow][selectedCol];
+        let needsRender = false;
+        if (button.id === 'erase-button') { if (cellData.value !== 0) { cellData.value = 0; needsRender = true; } else if (cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; } }
+        else if (button.dataset.num) { const num = parseInt(button.dataset.num); if (isNoteMode) { if (cellData.value === 0) { if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; } else { console.log("Нельзя добавить заметку при основном значении."); } } else { if (cellData.value !== num) { cellData.value = num; needsRender = true; } else { cellData.value = 0; needsRender = true; } } }
+        if (needsRender) { renderCell(selectedRow, selectedCol); }
+    });
 
-    // Обработка нажатий клавиш (без изменений)
-    document.addEventListener('keydown', (event) => { /* ... (код без изменений) ... */ });
+     // Обработка нажатий клавиш (БЕЗ ИЗМЕНЕНИЙ - она не должна снимать выделение)
+    document.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault(); console.log("Режим заметок переключен клавиатурой:", isNoteMode ? "ВКЛ" : "ВЫКЛ"); return; }
+        if (!selectedCell || selectedCell.classList.contains('given')) { console.log("Действие (keydown) отменено: 'given' или нет выбора."); return; }
+        const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false;
+        if (event.key >= '1' && event.key <= '9') { clearErrors(); const num = parseInt(event.key); if (isNoteMode) { if (cellData.value === 0) { if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; } } else { if (cellData.value !== num) { cellData.value = num; needsRender = true; } else { cellData.value = 0; needsRender = true; } } }
+        else if (event.key === 'Backspace' || event.key === 'Delete') { clearErrors(); if (cellData.value !== 0) { cellData.value = 0; needsRender = true; } else if (cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; } }
+        if (needsRender) { renderCell(selectedRow, selectedCol); }
+    });
 
-    // Клик по кнопке "Проверить" (без изменений)
-    checkButton.addEventListener('click', () => { /* ... (код без изменений) ... */ });
-
-    // Клик по кнопке "Новая игра" -> Показать модальное окно (без изменений)
-    newGameButton.addEventListener('click', () => { /* ... (код без изменений) ... */ });
-
-    // Обработка кликов внутри модального окна (без изменений)
-    modalButtonsContainer.addEventListener('click', (event) => { /* ... (код без изменений) ... */ });
-
-    // Клик по оверлею для закрытия модального окна (без изменений)
-    modalOverlay.addEventListener('click', () => { /* ... (код без изменений) ... */ });
-
-    // ! НОВЫЙ ОБРАБОТЧИК: Клик по документу для снятия выделения
+    // --- Клик по документу для снятия выделения ---
+    // ! ИЗМЕНЕНИЕ: Упрощенная логика
     document.addEventListener('click', (event) => {
-        // Проверяем, есть ли вообще выделенная ячейка
+        // Проверяем, есть ли вообще выделение
         if (!selectedCell) {
             return;
         }
 
-        // Проверяем, был ли клик ВНЕ доски и ВНЕ цифровой панели
-        const isClickInsideBoard = boardElement.contains(event.target);
-        const isClickInsideNumpad = numpad.contains(event.target);
-        // Также не снимаем выделение, если кликнули на кнопки управления или статус
-        const isClickInsideControls = checkButton.contains(event.target) || newGameButton.contains(event.target);
-        const isClickInsideStatus = statusMessageElement.contains(event.target);
-        // И не снимаем при клике на модалку или оверлей
-        const isClickInsideModal = difficultyModal.contains(event.target) || modalOverlay.contains(event.target);
+        // Элемент, по которому кликнули
+        const target = event.target;
 
-        if (!isClickInsideBoard && !isClickInsideNumpad && !isClickInsideControls && !isClickInsideStatus && !isClickInsideModal) {
-            console.log("Клик вне целевых зон, снимаем выделение.");
-            clearSelection();
+        // Был ли клик ВНУТРИ доски?
+        const isClickInsideBoard = boardElement.contains(target);
+        // Был ли клик ВНУТРИ цифровой панели?
+        const isClickInsideNumpad = numpad.contains(target);
+        // Был ли клик по кнопке "Новая игра" (чтобы не сбрасывать выделение перед показом модалки)?
+        const isClickOnNewGame = newGameButton.contains(target);
+
+        // Если клик НЕ внутри доски И НЕ внутри цифровой панели И НЕ по кнопке "Новая игра"
+        if (!isClickInsideBoard && !isClickInsideNumpad && !isClickOnNewGame) {
+             // Проверяем также, не кликнули ли мы внутри уже открытого модального окна
+             const isClickInsideModal = difficultyModal.contains(target);
+             if (!isClickInsideModal) { // Снимаем выделение только если клик был не в модалке
+                 console.log("Клик вне доски/numpad/newGame/modal, снимаем выделение.");
+                 clearSelection();
+             }
         }
-    });
+        // Обработка повторного клика на ту же ячейку перенесена в обработчик boardElement.addEventListener
+    }, true); // Используем capturing phase, чтобы сработать до других обработчиков, если нужно
 
 
+    // Клик по кнопке "Проверить" (без изменений)
+    checkButton.addEventListener('click', () => { /* ... (код без изменений) ... */ });
+    // Клик по кнопке "Новая игра" -> Показать модальное окно (без изменений)
+    newGameButton.addEventListener('click', () => { /* ... (код без изменений) ... */ });
+    // Обработка кликов внутри модального окна (без изменений)
+    modalButtonsContainer.addEventListener('click', (event) => { /* ... (код без изменений) ... */ });
+    // Клик по оверлею для закрытия модального окна (без изменений)
+    modalOverlay.addEventListener('click', () => { /* ... (код без изменений) ... */ });
     // --- Инициализация Telegram Web App SDK --- (без изменений)
      try { /* ... */ } catch (e) { /* ... */ }
-
     // --- Первый запуск игры при загрузке страницы ---
     initGame();
 
@@ -154,9 +166,7 @@ function renderBoard() { boardElement.innerHTML = ''; if (!userGrid || userGrid.
 function createCellElement(r, c) { const cell = document.createElement('div'); cell.classList.add('cell'); cell.dataset.row = r; cell.dataset.col = c; const cellData = userGrid[r][c]; const valueContainer = document.createElement('div'); valueContainer.classList.add('cell-value-container'); const notesContainer = document.createElement('div'); notesContainer.classList.add('cell-notes-container'); if (cellData.value !== 0) { valueContainer.textContent = cellData.value; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none'; const puzzleChar = currentPuzzle[r * 9 + c]; if (puzzleChar !== '.' && puzzleChar !== '0') { cell.classList.add('given'); } } else if (cellData.notes.size > 0) { valueContainer.style.display = 'none'; notesContainer.style.display = 'grid'; notesContainer.innerHTML = ''; for (let n = 1; n <= 9; n++) { const noteDigit = document.createElement('div'); noteDigit.classList.add('note-digit'); noteDigit.textContent = cellData.notes.has(n) ? n : ''; notesContainer.appendChild(noteDigit); } } else { valueContainer.textContent = ''; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none'; } cell.appendChild(valueContainer); cell.appendChild(notesContainer); cell.classList.remove('thick-border-bottom', 'thick-border-right'); if ((c + 1) % 3 === 0 && c < 8) cell.classList.add('thick-border-right'); if ((r + 1) % 3 === 0 && r < 8) cell.classList.add('thick-border-bottom'); return cell; }
 function renderCell(r, c) { const oldCell = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (oldCell) { const newCell = createCellElement(r, c); if (oldCell.classList.contains('selected')) newCell.classList.add('selected'); if (oldCell.classList.contains('incorrect')) newCell.classList.add('incorrect'); if (selectedRow === r && selectedCol === c) { selectedCell = newCell; } oldCell.replaceWith(newCell); } else { console.warn(`renderCell: Cell [${r}, ${c}] not found.`); } }
 function getSolutionValue(row, col) { if (!currentSolution) return null; const char = currentSolution[row * 9 + col]; return (char === '.' || char === '0') ? 0 : parseInt(char); }
+function clearSelection() { if (selectedCell) { selectedCell.classList.remove('selected'); } boardElement.querySelectorAll('.cell.highlighted').forEach(cell => { cell.classList.remove('highlighted'); }); selectedCell = null; selectedRow = -1; selectedCol = -1; }
 function clearErrors() { boardElement.querySelectorAll('.cell.incorrect').forEach(cell => { cell.classList.remove('incorrect'); }); statusMessageElement.textContent = ''; statusMessageElement.className = ''; }
 function updateNoteToggleButtonState() { if (isNoteMode) { noteToggleButton.classList.add('active'); noteToggleButton.title = "Режим заметок (ВКЛ)"; } else { noteToggleButton.classList.remove('active'); noteToggleButton.title = "Режим заметок (ВЫКЛ)"; } }
-// Обработчики для numpad, keydown, checkButton, newGameButton, modalButtonsContainer, modalOverlay - код уже включен в основной блок выше.
-// Инициализация TWA SDK
-try { if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.ready(); console.log("Telegram WebApp SDK initialized."); } else { console.log("Telegram WebApp SDK not found."); } } catch (e) { console.error("Error initializing TWA SDK:", e); }
-// Запуск initGame() уже есть в основном блоке выше.
+// Код обработчиков checkButton, newGameButton, модального окна и TWA SDK уже включен выше.
