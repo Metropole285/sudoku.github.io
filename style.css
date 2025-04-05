@@ -1,3 +1,4 @@
+/* ===== Базовые стили страницы ===== */
 body {
     font-family: sans-serif;
     display: flex;
@@ -33,15 +34,13 @@ h1 {
     overflow: hidden; /* Обрезать все, что может выйти за рамки */
 }
 
-/* --- Стили границ ячеек --- */
+/* --- Стили ячеек и их границ --- */
 .cell {
-    display: flex; /* Для центрирования содержимого */
+    display: flex; /* Используем flex, хотя содержимое теперь абсолютно позиционировано */
     justify-content: center;
     align-items: center;
-    /* Базовая тонкая серая граница по умолчанию */
+    /* Базовая тонкая серая граница */
     border: 1px solid #ccc;
-    /* Адаптивный размер шрифта внутри ячейки */
-    font-size: clamp(16px, 5vw, 24px);
     cursor: pointer; /* Указатель при наведении на пустые ячейки */
     box-sizing: border-box; /* Границы включаются в размер ячейки */
     /* Предотвращение выделения текста цифр */
@@ -49,46 +48,85 @@ h1 {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    position: relative; /* Важно для абсолютного позиционирования дочерних контейнеров */
+    overflow: hidden; /* Скрыть все, что выходит за рамки ячейки */
 }
 
 /* Убираем "двойные" тонкие линии внутри блоков */
-/* Убираем верхнюю границу у всех рядов, кроме первого */
-.cell:nth-child(n+10) {
-    border-top: none;
-}
-/* Убираем левую границу у всех колонок, кроме первой */
-.cell:not(:nth-child(9n+1)) {
-    border-left: none;
-}
+.cell:nth-child(n+10) { border-top: none; }
+.cell:not(:nth-child(9n+1)) { border-left: none; }
 
 /* Толстые черные линии для границ блоков 3x3 */
-/* Эти классы добавляются JavaScript к ячейкам на границах */
 .thick-border-bottom {
-     border-bottom-width: 2px !important; /* Увеличиваем толщину */
-     border-bottom-color: black !important; /* Делаем черным */
+     border-bottom-width: 2px !important;
+     border-bottom-color: black !important;
 }
 .thick-border-right {
-     border-right-width: 2px !important; /* Увеличиваем толщину */
-     border-right-color: black !important; /* Делаем черным */
+     border-right-width: 2px !important;
+     border-right-color: black !important;
 }
+
+/* --- Контейнеры внутри ячейки для числа и заметок --- */
+.cell-value-container {
+    position: absolute; /* Позиционируем абсолютно внутри .cell */
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex; /* Используем для центрирования числа */
+    justify-content: center;
+    align-items: center;
+    font-size: clamp(16px, 5vw, 24px); /* Размер для основной цифры */
+    line-height: 1; /* Убрать лишнюю высоту строки */
+    font-weight: normal; /* Обычный шрифт для пользовательского ввода */
+}
+
+.cell-notes-container {
+    position: absolute; /* Позиционируем абсолютно внутри .cell */
+    top: 0; left: 0;
+    width: 100%; /* Занимает всю ячейку для сетки */
+    height: 100%;
+    display: grid; /* Сетка 3x3 для заметок */
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 0px; /* Без отступов */
+    padding: 1px; /* Очень маленький внутренний отступ */
+    box-sizing: border-box;
+    display: none; /* По умолчанию скрыт */
+}
+
+.note-digit {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: clamp(8px, 2vw, 10px); /* Значительно меньший размер */
+    line-height: 1;
+    color: #555; /* Серый цвет для заметок */
+    text-align: center;
+}
+
 
 /* --- Стили для состояний ячеек --- */
 /* Изначально заданные цифры */
-.cell.given {
+.cell.given .cell-value-container { /* Стилизуем контейнер значения для данных ячеек */
     font-weight: bold; /* Жирный шрифт */
+}
+.cell.given { /* Сама ячейка */
     background-color: #eee; /* Слегка серый фон */
-    cursor: default; /* Обычный курсор, т.к. нельзя изменить */
+    cursor: default; /* Обычный курсор */
 }
 /* Выбранная пользователем ячейка */
 .cell.selected {
     background-color: #a7d8ff; /* Светло-голубой фон */
-    /* box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3); */ /* Опциональная внутренняя тень */
+    /* Можно добавить эффект, например, для всей ячейки */
+    /* box-shadow: inset 0 0 3px #007bff; */
 }
 /* Неправильно введенная цифра (после проверки) */
-.cell.incorrect {
-    background-color: #ffdddd; /* Бледно-розовый фон */
+.cell.incorrect .cell-value-container { /* Стилизуем контейнер значения */
     color: red; /* Красный цвет цифры */
 }
+.cell.incorrect { /* Сама ячейка */
+     background-color: #ffdddd; /* Бледно-розовый фон */
+}
+
 
 /* ===== Стили элементов управления ===== */
 #controls {
@@ -107,40 +145,31 @@ h1 {
     color: white; /* Белый текст */
     transition: background-color 0.2s; /* Плавный переход цвета фона */
 }
-/* Эффект при наведении */
-#controls button:hover {
-    background-color: #0056b3; /* Более темный синий */
-}
-/* Эффект при нажатии */
-#controls button:active {
-    background-color: #004085; /* Еще темнее */
-}
+#controls button:hover { background-color: #0056b3; }
+#controls button:active { background-color: #004085; }
+
 
 /* ===== Стили для сообщения о статусе ===== */
 #status-message {
     margin-top: 5px;
     font-size: 16px;
-    min-height: 20px; /* Зарезервировать место, чтобы кнопки не прыгали */
+    min-height: 20px; /* Зарезервировать место */
     font-weight: bold;
-    text-align: center; /* Центрировать текст */
+    text-align: center;
 }
-/* Класс для сообщения об успешном решении */
-.correct {
-    color: green;
-}
-/* Класс для сообщения об ошибках */
-.incorrect-msg {
-    color: red;
-}
+.correct { color: green; }
+.incorrect-msg { color: red; }
+
 
 /* ===== Стили для цифровой панели ===== */
 #numpad {
     display: grid;
-    grid-template-columns: repeat(5, 1fr); /* 5 колонок одинаковой ширины */
-    gap: 5px; /* Пространство между кнопками */
-    margin-top: 10px; /* Отступ сверху */
-    /* Ограничение ширины панели */
-    width: clamp(270px, 90vw, 350px);
+    /* Сетка 3x4: 9 цифр + Заметки/Стереть */
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, auto);
+    gap: 5px;
+    margin-top: 10px;
+    width: clamp(200px, 70vw, 280px); /* Панель может быть поуже */
 }
 
 #numpad button {
@@ -148,28 +177,32 @@ h1 {
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
-    border: 1px solid #ccc; /* Тонкая серая рамка */
+    border: 1px solid #ccc;
     border-radius: 5px;
-    background-color: #fff; /* Белый фон */
-    transition: background-color 0.2s;
-    /* Убираем стандартную синюю подсветку при нажатии на мобильных */
+    background-color: #fff;
+    transition: background-color 0.2s, box-shadow 0.2s;
     -webkit-tap-highlight-color: transparent;
 }
-/* Эффект при наведении */
-#numpad button:hover {
-    background-color: #eee; /* Слегка серый фон */
-}
-/* Эффект при нажатии */
-#numpad button:active {
-    background-color: #ddd; /* Более темный серый */
-}
+#numpad button:hover { background-color: #eee; }
+#numpad button:active { background-color: #ddd; }
 
-/* Стиль для кнопки "Стереть" */
-#numpad #erase-button {
-    grid-column: span 2; /* Растянуть на 2 колонки */
-    background-color: #ffc107; /* Желтый цвет */
-    color: #333; /* Темный текст для контраста */
+/* Позиционирование кнопок 1-9 стандартное */
+/* Позиционирование кнопки "Заметки" */
+#note-toggle-button {
+    grid-column: 1 / 2; /* Первая колонка */
+    grid-row: 4 / 5;    /* Четвертый ряд */
+    font-size: 20px;    /* Размер иконки */
 }
-#numpad #erase-button:hover {
-    background-color: #e0a800; /* Более темный желтый */
+/* Позиционирование кнопки "Стереть" */
+#erase-button {
+    grid-column: 2 / 4; /* Занимает 2 и 3 колонки */
+    grid-row: 4 / 5;    /* Четвертый ряд */
+    background-color: #ffc107;
+}
+#erase-button:hover { background-color: #e0a800; }
+
+/* Стиль для активной кнопки "Заметки" */
+#note-toggle-button.active {
+    background-color: #a7d8ff; /* Такой же цвет, как у выделенной ячейки */
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.3); /* Внутренняя тень */
 }
