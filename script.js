@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const boardElement = document.getElementById('sudoku-board');
     const checkButton = document.getElementById('check-button');
     const newGameButton = document.getElementById('new-game-button');
-    const hintButton = document.getElementById('hint-button'); // <<< НОВАЯ КНОПКА
+    const hintButton = document.getElementById('hint-button');
     const statusMessageElement = document.getElementById('status-message');
     const numpad = document.getElementById('numpad');
     const noteToggleButton = document.getElementById('note-toggle-button');
@@ -26,9 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let timerInterval = null;
     let secondsElapsed = 0;
 
-    // --- Переменные для подсказок ---  // <<< НОВОЕ
-    const MAX_HINTS = 3;                // <<< НОВОЕ
-    let hintsRemaining = MAX_HINTS;     // <<< НОВОЕ
+    // --- Переменные для подсказок ---
+    const MAX_HINTS = 3;
+    let hintsRemaining = MAX_HINTS;
 
     // --- Инициализация новой игры ---
     function initGame(difficulty = "medium") {
@@ -53,9 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
             isNoteMode = false;
             updateNoteToggleButtonState();
 
-            // --- Сброс и обновление подсказок --- // <<< НОВОЕ
-            hintsRemaining = MAX_HINTS;          // <<< НОВОЕ
-            updateHintButtonState();             // <<< НОВОЕ
+            // --- Сброс и обновление подсказок ---
+            hintsRemaining = MAX_HINTS;
+            updateHintButtonState();
             // ------------------------------------
 
             // --- Управление таймером при старте игры ---
@@ -72,8 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
             statusMessageElement.className = 'incorrect-msg';
             boardElement.innerHTML = '<p style="color: red; text-align: center;">Не удалось загрузить игру.</p>';
             stopTimer(); // Остановить таймер и при ошибке
-            hintsRemaining = 0; // <<< НОВОЕ: Отключаем подсказки при ошибке
-            updateHintButtonState(); // <<< НОВОЕ
+            hintsRemaining = 0;
+            updateHintButtonState();
         }
     }
 
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cell.appendChild(valueContainer);
         cell.appendChild(notesContainer);
 
-        // Добавляем толстые границы (убрал remove, т.к. создаем элемент заново)
+        // Добавляем толстые границы
         if ((c + 1) % 3 === 0 && c < 8) cell.classList.add('thick-border-right');
         if ((r + 1) % 3 === 0 && r < 8) cell.classList.add('thick-border-bottom');
 
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- НОВАЯ функция: Обновление состояния кнопки подсказки --- // <<< НОВОЕ
+    // Функция обновления состояния кнопки подсказки
     function updateHintButtonState() {
         if (hintButton) {
             hintButton.textContent = `💡 ${hintsRemaining}/${MAX_HINTS}`;
@@ -313,33 +313,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Новая функция для подсветки связанных ячеек
+    // === ИЗМЕНЕНИЕ ЗДЕСЬ: Функция подсветки СТРОКИ и СТОЛБЦА ===
     function highlightRelatedCells(row, col) {
         // Сначала убираем старую подсветку
         boardElement.querySelectorAll('.cell.highlighted').forEach(cell => {
             cell.classList.remove('highlighted');
         });
 
-        // Подсвечиваем строку, столбец
+        // Подсвечиваем ТОЛЬКО строку и столбец
         boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => {
+            // Применяем класс 'highlighted' ко всем ячейкам в строке и столбце.
+            // Сама выбранная ячейка тоже получит этот класс, но её стиль '.selected'
+            // (если он есть) будет иметь приоритет или смешается с '.highlighted' в CSS.
             cell.classList.add('highlighted');
         });
 
-        // Подсвечиваем блок 3x3
-        const startRow = Math.floor(row / 3) * 3;
-        const startCol = Math.floor(col / 3) * 3;
-        for (let r = startRow; r < startRow + 3; r++) {
-            for (let c = startCol; c < startCol + 3; c++) {
-                const cell = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-                if (cell) {
-                    cell.classList.add('highlighted');
-                }
-            }
-        }
-        // console.log("Related cells highlighted."); // Можно раскомментировать для отладки
-    }
+        // --- БЛОК ПОДСВЕТКИ 3x3 УДАЛЕН ---
 
-    // --- НОВАЯ функция: Предоставление подсказки --- // <<< НОВОЕ
+        console.log(`Подсвечены строка ${row} и столбец ${col}.`); // Обновленный лог
+    }
+    // ==========================================================
+
+    // Функция предоставления подсказки
     function provideHint() {
         if (hintsRemaining <= 0 || !currentSolution || !userGrid) {
             console.log("Подсказка недоступна (закончились или игра не готова).");
@@ -351,7 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
                 const index = r * 9 + c;
+                // Проверяем, что индекс в пределах строки головоломки
+                if (index >= currentPuzzle.length) continue;
                 const isGiven = currentPuzzle[index] !== '.' && currentPuzzle[index] !== '0';
+                 // Проверяем, что ячейка в userGrid существует
+                 if (!userGrid[r] || !userGrid[r][c]) continue;
                 const isEmpty = userGrid[r][c].value === 0;
 
                 if (!isGiven && isEmpty) {
@@ -359,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (solutionValue !== null && solutionValue !== 0) {
                         console.log(`Подсказка для [${r}, ${c}]: ${solutionValue}`);
                         userGrid[r][c].value = solutionValue; // Устанавливаем значение
-                        userGrid[r][c].notes.clear(); // Очищаем заметки
+                        if (userGrid[r][c].notes) userGrid[r][c].notes.clear(); // Очищаем заметки, если они есть
                         renderCell(r, c); // Перерисовываем ячейку
 
                         // Кратковременно подсветим ячейку с подсказкой
@@ -369,9 +368,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             hintedCellElement.style.backgroundColor = '#fffacd'; // LemonChiffon
                             setTimeout(() => {
                                 // Возвращаем исходный фон через короткое время
-                                // Если ячейка была выбрана или подсвечена, эти стили применятся CSS-правилами
                                 hintedCellElement.style.backgroundColor = '';
                                 hintedCellElement.style.transition = ''; // Убираем инлайн-переход
+                                // После снятия подсветки, если ячейка была выбрана/подсвечена,
+                                // соответствующие классы должны быть применены снова, если нужно.
+                                // Проще всего - перерисовать или обновить классы.
+                                // Но пока оставим так, основной эффект достигнут.
                             }, 500); // 0.5 секунды подсветки
                         }
 
@@ -406,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Клик по доске (выбор ячейки + подсветка)
     boardElement.addEventListener('click', (event) => {
         const target = event.target.closest('.cell');
-        if (!target) { /*console.log("Клик мимо ячейки.");*/ return; } // Не логируем клики вне ячеек
+        if (!target) return;
 
         const r = parseInt(target.dataset.row);
         const c = parseInt(target.dataset.col);
@@ -426,8 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!selectedCell.classList.contains('given')) {
                 selectedCell.classList.add('selected');
             }
-            // Подсвечиваем связанные ячейки в любом случае
-            highlightRelatedCells(r, c);
+            // Подсвечиваем связанные ячейки (строку и столбец)
+            highlightRelatedCells(r, c); // Вызов ОБНОВЛЕННОЙ функции
         }
         clearErrors(); // Убираем подсветку ошибок при клике на любую ячейку
     });
@@ -446,18 +448,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Если ячейка не выбрана или выбрана предустановленная, игнорируем ввод
         if (!selectedCell || selectedCell.classList.contains('given')) {
-            // console.log("Numpad click ignored: cell not selected or is given."); // Можно раскомментировать для отладки
-            // Можно добавить визуальную обратную связь, например, легкое "покачивание" доски
-            if(selectedCell && selectedCell.classList.contains('given')) {
+             if(selectedCell && selectedCell.classList.contains('given')) {
                  statusMessageElement.textContent = "Эту ячейку нельзя изменить";
                  statusMessageElement.className = '';
-                 setTimeout(() => { statusMessageElement.textContent = ""; }, 1500);
-            }
+                 setTimeout(() => { if(statusMessageElement.textContent === "Эту ячейку нельзя изменить") statusMessageElement.textContent = ""; }, 1500);
+             }
             return;
         }
 
         // Ячейка выбрана и она не 'given'
         clearErrors(); // Убираем ошибки перед вводом
+         // Убедимся, что данные для ячейки существуют
+         if (!userGrid[selectedRow] || userGrid[selectedRow][selectedCol] === undefined) {
+            console.error(`Нет данных userGrid для выбранной ячейки [${selectedRow}, ${selectedCol}]`);
+            return;
+        }
         const cellData = userGrid[selectedRow][selectedCol];
         let needsRender = false; // Флаг, нужно ли перерисовывать ячейку
 
@@ -471,12 +476,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 needsRender = true;
                 console.log(`Очищены заметки в [${selectedRow}, ${selectedCol}]`);
             }
-            // Если и значения и заметок нет, ничего не делаем
         } else if (button.dataset.num) { // Нажата кнопка с цифрой
             const num = parseInt(button.dataset.num);
             if (isNoteMode) { // РЕЖИМ ЗАМЕТОК
                 // Заметки можно ставить только в пустые ячейки
                 if (cellData.value === 0) {
+                     if (!cellData.notes) cellData.notes = new Set(); // Инициализируем, если нужно
                     if (cellData.notes.has(num)) {
                         cellData.notes.delete(num); // Убираем заметку, если она уже есть
                     } else {
@@ -485,16 +490,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     needsRender = true;
                 } else {
                     console.log("Нельзя добавить заметку в ячейку со значением.");
-                    // Можно добавить сообщение пользователю
                     statusMessageElement.textContent = "Сначала сотрите цифру";
                     statusMessageElement.className = '';
-                    setTimeout(() => { statusMessageElement.textContent = ""; }, 1500);
+                    setTimeout(() => { if(statusMessageElement.textContent === "Сначала сотрите цифру") statusMessageElement.textContent = ""; }, 1500);
                 }
             } else { // РЕЖИМ ВВОДА ЦИФРЫ
                 if (cellData.value !== num) { // Если вводим новую цифру
                     cellData.value = num;
                     // При вводе основного значения, ОЧИЩАЕМ заметки в этой ячейке
-                    if (cellData.notes.size > 0) {
+                    if (cellData.notes && cellData.notes.size > 0) {
                          cellData.notes.clear();
                          console.log(`Введено значение ${num} в [${selectedRow}, ${selectedCol}], заметки очищены.`);
                     } else {
@@ -517,36 +521,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
      // Обработка нажатий клавиш клавиатуры
     document.addEventListener('keydown', (event) => {
-         // Игнорируем ввод, если фокус на текстовом поле (на всякий случай)
-         if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
-             return;
-         }
+         // Игнорируем ввод, если фокус на текстовом поле
+         if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
          // Переключение режима заметок клавишей N/Т
-        if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') { // Добавим русскую 'т'
+        if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') {
             isNoteMode = !isNoteMode;
             updateNoteToggleButtonState();
-            event.preventDefault(); // Предотвратить ввод 'n'/'т' если где-то есть поле ввода
+            event.preventDefault();
             return;
         }
 
-        // Если ячейка не выбрана или выбрана предустановленная, игнорируем ввод цифр/удаление
-        if (!selectedCell || selectedCell.classList.contains('given')) {
-             // Исключение: разрешаем навигацию стрелками
-             if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-                 return;
+        // Разрешаем навигацию стрелками всегда
+         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+            if (!selectedCell) { // Если ничего не выбрано, выбираем центральную ячейку или (0,0)
+                 const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`);
+                 if (startCell) startCell.click();
+                 else return; // Не можем начать навигацию
              }
+             // Теперь selectedCell точно есть
+            let nextRow = selectedRow;
+            let nextCol = selectedCol;
+
+             // Используем функции для инкремента/декремента с проверкой границ
+             const move = (current, delta, max) => Math.min(max, Math.max(0, current + delta));
+
+            if (event.key === 'ArrowUp') nextRow = move(selectedRow, -1, 8);
+            if (event.key === 'ArrowDown') nextRow = move(selectedRow, 1, 8);
+            if (event.key === 'ArrowLeft') nextCol = move(selectedCol, -1, 8);
+            if (event.key === 'ArrowRight') nextCol = move(selectedCol, 1, 8);
+
+            if (nextRow !== selectedRow || nextCol !== selectedCol) {
+                 const nextCellElement = boardElement.querySelector(`.cell[data-row='${nextRow}'][data-col='${nextCol}']`);
+                 if (nextCellElement) {
+                     // Имитируем клик по новой ячейке для выделения и подсветки
+                     nextCellElement.click();
+                 }
+            }
+            event.preventDefault(); // Предотвратить прокрутку страницы стрелками
+            return; // Завершаем обработку для стрелок
         }
 
-        const cellData = selectedCell ? userGrid[selectedRow][selectedCol] : null; // Получаем данные только если ячейка выбрана
+
+        // Для остальных клавиш (цифры, delete) нужна выбранная и не 'given' ячейка
+        if (!selectedCell || selectedCell.classList.contains('given')) {
+             return;
+        }
+
+        // Убедимся, что данные для ячейки существуют
+        if (!userGrid[selectedRow] || userGrid[selectedRow][selectedCol] === undefined) {
+             console.error(`(Key) Нет данных userGrid для выбранной ячейки [${selectedRow}, ${selectedCol}]`);
+             return;
+        }
+        const cellData = userGrid[selectedRow][selectedCol];
         let needsRender = false;
 
         if (event.key >= '1' && event.key <= '9') { // Ввод цифр 1-9
-            if (!cellData) return; // Доп. проверка
             clearErrors();
             const num = parseInt(event.key);
             if (isNoteMode) { // Режим заметок
                 if (cellData.value === 0) {
+                    if (!cellData.notes) cellData.notes = new Set();
                     if (cellData.notes.has(num)) cellData.notes.delete(num);
                     else cellData.notes.add(num);
                     needsRender = true;
@@ -554,16 +589,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else { // Режим ввода цифры
                 if (cellData.value !== num) {
                     cellData.value = num;
-                     if (cellData.notes.size > 0) cellData.notes.clear(); // Очищаем заметки
+                     if (cellData.notes && cellData.notes.size > 0) cellData.notes.clear(); // Очищаем заметки
                     needsRender = true;
                 } else { // Повторное нажатие - стирание
                     cellData.value = 0;
                     needsRender = true;
                 }
             }
-            event.preventDefault(); // Предотвратить стандартное действие для цифр
+            event.preventDefault();
         } else if (event.key === 'Backspace' || event.key === 'Delete') { // Стирание
-             if (!cellData) return; // Доп. проверка
             clearErrors();
             if (cellData.value !== 0) { // Стираем значение
                 cellData.value = 0;
@@ -574,32 +608,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 needsRender = true;
                 console.log(`Key: Очищены заметки в [${selectedRow}, ${selectedCol}]`);
             }
-            event.preventDefault(); // Предотвратить стандартное действие (например, переход назад в браузере по Backspace)
-        } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) { // Навигация стрелками
-            if (!selectedCell) return; // Не можем двигаться, если ничего не выбрано
-            let nextRow = selectedRow;
-            let nextCol = selectedCol;
-            if (event.key === 'ArrowUp') nextRow = (r) => Math.max(0, r - 1);
-            if (event.key === 'ArrowDown') nextRow = (r) => Math.min(8, r + 1);
-            if (event.key === 'ArrowLeft') nextCol = (c) => Math.max(0, c - 1);
-            if (event.key === 'ArrowRight') nextCol = (c) => Math.min(8, c + 1);
-
-             // Рассчитываем новые координаты
-             const targetRow = typeof nextRow === 'function' ? nextRow(selectedRow) : selectedRow;
-             const targetCol = typeof nextCol === 'function' ? nextCol(selectedCol) : selectedCol;
-
-
-            if (targetRow !== selectedRow || targetCol !== selectedCol) {
-                 const nextCellElement = boardElement.querySelector(`.cell[data-row='${targetRow}'][data-col='${targetCol}']`);
-                 if (nextCellElement) {
-                     // Имитируем клик по новой ячейке для выделения и подсветки
-                     nextCellElement.click();
-                 }
-            }
-            event.preventDefault(); // Предотвратить прокрутку страницы стрелками
+            event.preventDefault();
         }
 
-        if (needsRender && selectedRow !== -1 && selectedCol !== -1) { // Убедимся, что координаты валидны
+        if (needsRender && selectedRow !== -1 && selectedCol !== -1) {
             renderCell(selectedRow, selectedCol);
         }
     });
@@ -619,7 +631,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let boardComplete = true;
 
         for (let r = 0; r < 9; r++) {
+             if (!userGrid[r]) continue; // Пропускаем некорректные строки
             for (let c = 0; c < 9; c++) {
+                 if (userGrid[r][c] === undefined) continue; // Пропускаем некорректные ячейки
                 const cellData = userGrid[r][c];
                 const userValue = cellData.value;
                 const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
@@ -642,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusMessageElement.className = 'correct';
             stopTimer(); // Останавливаем таймер при успехе
             clearSelection(); // Снимаем выделение ячейки
-            // Можно добавить эффект "победы", например, конфетти
+            hintButton.disabled = true; // Отключаем подсказки для решенной игры
         } else if (!allCorrect) {
             statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены.";
             statusMessageElement.className = 'incorrect-msg';
@@ -659,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showDifficultyModal();
     });
 
-    // --- НОВЫЙ обработчик для кнопки подсказки --- // <<< НОВОЕ
+    // Обработчик для кнопки подсказки
     if (hintButton) {
         hintButton.addEventListener('click', provideHint);
     } else {
@@ -685,12 +699,22 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (target.id === 'cancel-difficulty-button') {
                 console.log("Выбор сложности отменен.");
                 hideDifficultyModal();
-                // Если текущая игра была, таймер нужно снова запустить (если он был остановлен)
+                // Если текущая игра была, таймер нужно снова запустить (если он был остановлен и игра не решена)
                 if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
-                     // Проверяем, решена ли игра, чтобы не запускать таймер для решенной
-                     let isSolved = true;
-                     for (let r=0; r<9; ++r) for(let c=0; c<9; ++c) if(userGrid[r][c].value === 0) { isSolved = false; break; }
-                     if (!isSolved) startTimer();
+                    let isSolved = true;
+                    // Добавим проверку на существование userGrid
+                    if (userGrid && userGrid.length === 9) {
+                        for (let r = 0; r < 9; ++r) {
+                            if (!userGrid[r]) { isSolved = false; break; } // Доп. проверка строки
+                            for (let c = 0; c < 9; ++c) {
+                                if (!userGrid[r][c] || userGrid[r][c].value === 0) { isSolved = false; break; }
+                            }
+                            if (!isSolved) break;
+                        }
+                    } else {
+                         isSolved = false; // Считаем нерешенной, если сетки нет
+                    }
+                    if (!isSolved) startTimer();
                 }
             }
         });
@@ -704,9 +728,19 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Клик по оверлею, закрытие модального окна.");
             hideDifficultyModal();
              // Та же логика восстановления таймера, что и при отмене
-             if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
-                let isSolved = true;
-                for (let r=0; r<9; ++r) for(let c=0; c<9; ++c) if(userGrid[r][c].value === 0) { isSolved = false; break; }
+            if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
+                 let isSolved = true;
+                 if (userGrid && userGrid.length === 9) {
+                    for (let r = 0; r < 9; ++r) {
+                        if (!userGrid[r]) { isSolved = false; break; }
+                        for (let c = 0; c < 9; ++c) {
+                             if (!userGrid[r][c] || userGrid[r][c].value === 0) { isSolved = false; break; }
+                        }
+                        if (!isSolved) break;
+                    }
+                 } else {
+                     isSolved = false;
+                 }
                 if (!isSolved) startTimer();
            }
         });
@@ -718,8 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
      try {
          if (window.Telegram && window.Telegram.WebApp) {
              window.Telegram.WebApp.ready();
-             // Можно добавить расширение viewport, если нужно
-             // window.Telegram.WebApp.expand();
+             // window.Telegram.WebApp.expand(); // Раскомментируйте, если нужно развернуть Web App
              console.log("Telegram WebApp SDK инициализирован.");
          } else {
              console.log("Telegram WebApp SDK не найден (запуск вне Telegram?).");
