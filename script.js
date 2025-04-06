@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkButton = document.getElementById('check-button');
     const newGameButton = document.getElementById('new-game-button');
     const hintButton = document.getElementById('hint-button');
+    const undoButton = document.getElementById('undo-button'); // <<< КНОПКА ОТМЕНЫ
     const statusMessageElement = document.getElementById('status-message');
     const numpad = document.getElementById('numpad');
     const noteToggleButton = document.getElementById('note-toggle-button');
@@ -14,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalButtonsContainer = difficultyModal ? difficultyModal.querySelector('.modal-buttons') : null;
     const timerElement = document.getElementById('timer');
 
-    // --- Ключи для localStorage --- // <<< НОВОЕ
+    // --- Ключи для localStorage ---
     const SAVE_KEY = 'sudokuGameState';
 
     // --- Переменные состояния игры ---
@@ -27,19 +28,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let isNoteMode = false;
     let timerInterval = null;
     let secondsElapsed = 0;
-    let currentDifficulty = 'medium'; // <<< НОВОЕ: храним текущую сложность
+    let currentDifficulty = 'medium';
 
     // --- Переменные для подсказок ---
     const MAX_HINTS = 3;
     let hintsRemaining = MAX_HINTS;
 
-    // --- Инициализация новой игры ---
-    function initGame(difficulty = "medium", restoreState = null) { // <<< Добавлен параметр restoreState
-        console.log(`Запуск initGame с уровнем сложности: ${difficulty}...`);
-        currentDifficulty = difficulty; // <<< Сохраняем сложность
-        stopTimer(); // Останавливаем предыдущий таймер, если был
+    // --- Стек истории для Undo --- // <<< НОВОЕ
+    let historyStack = [];
 
-        if (restoreState) { // <<< НОВОЕ: Логика восстановления состояния
+    // --- Инициализация новой игры ---
+    function initGame(difficulty = "medium", restoreState = null) {
+        console.log(`Запуск initGame с уровнем сложности: ${difficulty}...`);
+        currentDifficulty = difficulty;
+        stopTimer(); // Остановка обязательна перед любыми изменениями
+        historyStack = []; // <<< Очищаем историю при любой инициализации
+        updateUndoButtonState(); // <<< Обновляем состояние кнопки Отмена
+
+        if (restoreState) {
             console.log("Восстановление игры из сохранения...");
             try {
                 currentPuzzle = restoreState.puzzle;
@@ -59,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error("Неполные данные в сохранении.");
                 }
                 console.log("Игра успешно восстановлена.");
-
             } catch (error) {
                 console.error("Ошибка восстановления игры:", error);
                 statusMessageElement.textContent = "Ошибка загрузки сохранения. Начинаем новую игру.";
@@ -68,29 +73,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Переходим к генерации новой игры
                 return initGame(difficulty); // Рекурсивный вызов без restoreState
             }
-        } else { // <<< НОВОЕ: Логика генерации новой игры
+        } else { // <<< Логика генерации новой игры
             console.log("Генерация новой игры...");
             try {
                 if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
                     throw new Error("Библиотека sudoku.js не загружена или неисправна.");
                 }
-                console.log("Библиотека sudoku найдена.");
                 currentPuzzle = sudoku.generate(difficulty);
                 if (!currentPuzzle) throw new Error(`Генерация (${difficulty}) не удалась`);
-                console.log("Сгенерировано:", currentPuzzle);
                 currentSolution = sudoku.solve(currentPuzzle);
                 if (!currentSolution) {
                      // Попытка решить еще раз, иногда генератор может давать сбои
                      currentSolution = sudoku.solve(currentPuzzle);
                      if (!currentSolution) throw new Error("Не удалось найти решение для сгенерированной головоломки");
                 }
-                console.log("Решение:", currentSolution);
-
                 userGrid = boardStringToObjectArray(currentPuzzle);
                 secondsElapsed = 0;
                 hintsRemaining = MAX_HINTS;
                 isNoteMode = false;
-                clearSavedGameState(); // Очищаем старое сохранение при старте новой игры
+                clearSavedGameState(); // Очищаем старое сохранение при старте НОВОЙ игры
                 console.log("Новая игра успешно сгенерирована.");
             } catch (error) {
                 console.error("ОШИБКА генерации новой игры:", error);
@@ -99,8 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 boardElement.innerHTML = '<p style="color: red; text-align: center;">Не удалось загрузить игру.</p>';
                 // Обнуляем состояние, чтобы предотвратить дальнейшие ошибки
                 currentPuzzle = null; currentSolution = null; userGrid = []; hintsRemaining = 0;
-                stopTimer();
-                updateHintButtonState();
+                stopTimer(); updateHintButtonState(); updateUndoButtonState(); // Обновляем кнопки
                 return; // Прерываем инициализацию
             }
         }
@@ -114,47 +114,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateNoteToggleButtonState();
         updateHintButtonState();
+        updateUndoButtonState(); // Обновляем кнопку Отмена (скорее всего будет disabled)
         updateTimerDisplay(); // Показать время (00:00 или сохраненное)
         startTimer(); // Запустить таймер
 
-        if (!restoreState) saveGameState(); // <<< Сохраняем состояние сразу после генерации новой игры
+        // Не сохраняем сразу, т.к. еще не было ходов (и history пусто)
 
         console.log("Игра инициализирована.");
     }
 
-    // --- Функции сохранения/загрузки состояния --- // <<< НОВЫЙ БЛОК
-
+    // --- Функции сохранения/загрузки состояния ---
     function saveGameState() {
-        if (!currentPuzzle || !currentSolution || !userGrid) {
-            // Не сохраняем, если игра не инициализирована полностью
-            // console.log("Сохранение отменено: игра не готова.");
-            return;
+        if (!currentPuzzle || !currentSolution || !userGrid || userGrid.length === 0) {
+             // console.warn("Попытка сохранить неинициализированную игру.");
+             return;
         }
 
-        // Сериализуем userGrid (конвертируем Set в массив)
         const serializableGrid = userGrid.map(row =>
             row.map(cell => ({
                 value: cell.value,
-                notesArray: Array.from(cell.notes || []) // Конвертируем Set в массив
+                notesArray: Array.from(cell.notes || [])
             }))
         );
-
         const gameState = {
-            puzzle: currentPuzzle,
-            solution: currentSolution,
-            grid: serializableGrid,
-            time: secondsElapsed,
-            hints: hintsRemaining,
-            difficulty: currentDifficulty,
-            timestamp: Date.now() // Добавим время сохранения
+            puzzle: currentPuzzle, solution: currentSolution, grid: serializableGrid,
+            time: secondsElapsed, hints: hintsRemaining, difficulty: currentDifficulty,
+            timestamp: Date.now()
         };
-
         try {
             localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
-            // console.log("Игра сохранена."); // Можно раскомментировать для отладки
+            // console.log("Игра сохранена.");
         } catch (error) {
             console.error("Ошибка сохранения игры в localStorage:", error);
-            // Возможно, localStorage переполнен
             statusMessageElement.textContent = "Ошибка сохранения игры!";
             statusMessageElement.className = 'incorrect-msg';
         }
@@ -162,24 +153,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadGameState() {
         const savedData = localStorage.getItem(SAVE_KEY);
-        if (!savedData) {
-            return null; // Нет сохраненной игры
-        }
+        if (!savedData) return null;
         try {
             const gameState = JSON.parse(savedData);
-            // Простая проверка на наличие основных полей
             if (gameState && gameState.puzzle && gameState.solution && gameState.grid) {
                 console.log("Найдено сохранение от:", new Date(gameState.timestamp).toLocaleString());
                 return gameState;
             } else {
                 console.warn("Найдены некорректные данные сохранения.");
-                clearSavedGameState(); // Удаляем некорректные данные
-                return null;
+                clearSavedGameState(); return null;
             }
         } catch (error) {
             console.error("Ошибка парсинга сохраненных данных:", error);
-            clearSavedGameState(); // Удаляем некорректные данные
-            return null;
+            clearSavedGameState(); return null;
         }
     }
 
@@ -188,53 +174,125 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Сохраненное состояние игры удалено.");
     }
 
-    // --- // <<< КОНЕЦ НОВОГО БЛОКА
+    // --- Функции для Undo --- // <<< НОВЫЙ БЛОК
 
-    // --- Функции для модального окна ---
-    function showDifficultyModal() {
-        if (modalOverlay && difficultyModal) {
-            modalOverlay.style.display = 'block'; difficultyModal.style.display = 'block';
-            requestAnimationFrame(() => { modalOverlay.classList.add('visible'); difficultyModal.classList.add('visible'); });
-            console.log("Модальное окно показано.");
-        } else { console.error("Элементы модального окна не найдены!"); }
+    // Создает глубокую копию текущего состояния для истории
+    function createHistoryState() {
+         if (!userGrid || userGrid.length === 0) return null; // Не создавать, если сетка пуста
+         // Глубокое копирование сетки, включая Set заметок
+         const gridCopy = userGrid.map(row =>
+            row.map(cell => ({
+                value: cell.value,
+                notes: new Set(cell.notes || []) // Копируем Set
+            }))
+        );
+        return {
+            grid: gridCopy, // Сохраняем копию сетки
+            hints: hintsRemaining // Сохраняем количество подсказок
+        };
     }
-    function hideDifficultyModal() {
-         if (modalOverlay && difficultyModal) {
-            modalOverlay.classList.remove('visible'); difficultyModal.classList.remove('visible');
-            setTimeout(() => {
-                if (!modalOverlay.classList.contains('visible')) modalOverlay.style.display = 'none';
-                if (!difficultyModal.classList.contains('visible')) difficultyModal.style.display = 'none';
-            }, 300);
-            console.log("Модальное окно скрыто.");
-         }
+
+    // Добавляет текущее состояние в стек истории
+    function pushHistoryState() {
+        const stateToPush = createHistoryState();
+        if (stateToPush) { // Только если состояние было успешно создано
+            historyStack.push(stateToPush);
+            updateUndoButtonState(); // Обновляем кнопку
+            // console.log("Состояние добавлено в историю, размер:", historyStack.length);
+        } else {
+             console.warn("Попытка добавить невалидное состояние в историю.");
+        }
     }
+
+    // Обработчик нажатия кнопки "Отмена"
+    function handleUndo() {
+        if (historyStack.length === 0) {
+            console.log("История пуста, отмена невозможна.");
+            return; // Нечего отменять
+        }
+
+        stopTimer(); // Останавливаем таймер на время отмены
+
+        const previousState = historyStack.pop(); // Извлекаем последнее состояние
+        console.log("Отмена хода. Восстановление состояния...");
+
+        // Восстанавливаем состояние
+        try {
+            // Важно: previousState.grid уже содержит глубокую копию с Set'ами
+            userGrid = previousState.grid;
+            hintsRemaining = previousState.hints;
+
+            // Обновляем интерфейс
+            renderBoard(); // Перерисовываем всю доску
+            clearSelection(); // Сбрасываем выделение
+            clearErrors(); // Сбрасываем ошибки
+            updateHintButtonState(); // Обновляем счетчик подсказок
+            updateUndoButtonState(); // Обновляем доступность кнопки Отмена
+            saveGameState(); // Сохраняем восстановленное состояние в localStorage
+
+            console.log("Состояние успешно восстановлено.");
+        } catch(error) {
+             console.error("Ошибка при восстановлении состояния из истории:", error);
+             statusMessageElement.textContent = "Ошибка отмены хода!";
+             statusMessageElement.className = 'incorrect-msg';
+             historyStack = []; // Очищаем историю в случае серьезной ошибки
+             updateUndoButtonState();
+        } finally {
+             // Перезапускаем таймер, если игра не решена
+             // Проверяем, есть ли пустые НЕ начальные ячейки
+            let isSolved = true;
+            if (userGrid && userGrid.length === 9) {
+                 for (let r=0; r<9; ++r) {
+                     for (let c=0; c<9; ++c) {
+                         const index = r * 9 + c;
+                         const isGiven = currentPuzzle && (currentPuzzle[index] !== '.' && currentPuzzle[index] !== '0');
+                         if (!isGiven && userGrid[r][c].value === 0) {
+                             isSolved = false; break;
+                         }
+                     }
+                     if (!isSolved) break;
+                 }
+            } else { isSolved = false; } // Если сетки нет, не решена
+
+             if (!isSolved) {
+                 startTimer();
+             } else {
+                  // Если после отмены игра оказалась решенной, обновляем статус
+                  checkButton.click(); // Проще всего симулировать клик по кнопке проверки
+             }
+        }
+    }
+
+    // Обновляет состояние кнопки "Отмена" (включена/выключена)
+    function updateUndoButtonState() {
+        if (undoButton) {
+            undoButton.disabled = historyStack.length === 0;
+        } else {
+             console.error("Кнопка Отмена не найдена!");
+        }
+    }
+
+    // --- // <<< КОНЕЦ БЛОКА UNDO
 
     // --- Функции для таймера ---
     function startTimer() {
-        if(timerInterval) return; // Не запускать, если уже запущен
-        // Запускаем немедленно первый update, потом интервал
-        updateTimerDisplay();
+        if(timerInterval) return;
+        updateTimerDisplay(); // Обновить сразу
         timerInterval = setInterval(() => {
             secondsElapsed++;
             updateTimerDisplay();
-            // Периодически сохраняем время (например, каждые 10 сек), чтобы не терять прогресс таймера при сбое
-            if (secondsElapsed % 10 === 0) {
-                 saveGameState();
-            }
+            if (secondsElapsed % 10 === 0) { saveGameState(); } // Сохраняем периодически
         }, 1000);
          console.log("Таймер запущен.");
     }
-
     function stopTimer() {
         if (timerInterval) {
             clearInterval(timerInterval);
             timerInterval = null;
             console.log("Таймер остановлен.");
-             // Сохраняем игру при остановке таймера (например, при победе или открытии модалки)
-             saveGameState();
+             saveGameState(); // Сохраняем при остановке
         }
     }
-
     function updateTimerDisplay() {
         if (!timerElement) return;
         const minutes = Math.floor(secondsElapsed / 60);
@@ -252,16 +310,12 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let c = 0; c < 9; c++) {
                 const index = r * 9 + c;
                 if (index >= boardString.length) {
-                    console.error(`boardStringToObjectArray: Индекс ${index} вне диапазона строки длиной ${boardString.length}`);
-                    grid[r][c] = { value: 0, notes: new Set() };
-                    continue;
+                    console.error(`boardStringToObjectArray: Индекс ${index} вне диапазона.`);
+                    grid[r][c] = { value: 0, notes: new Set() }; continue;
                 }
                 const char = boardString[index];
                 const value = (char === '.' || char === '0') ? 0 : parseInt(char);
-                grid[r][c] = {
-                    value: value,
-                    notes: new Set()
-                };
+                grid[r][c] = { value: value, notes: new Set() };
             }
         }
         return grid;
@@ -272,24 +326,17 @@ document.addEventListener('DOMContentLoaded', () => {
         boardElement.innerHTML = '';
         if (!userGrid || userGrid.length !== 9) {
              console.error("renderBoard: Некорректные данные userGrid");
-             boardElement.innerHTML = '<p style="color: red; text-align: center;">Ошибка отрисовки доски.</p>';
-             return;
+             boardElement.innerHTML = '<p style="color: red; text-align: center;">Ошибка отрисовки доски.</p>'; return;
         }
         for (let r = 0; r < 9; r++) {
              if (!userGrid[r] || userGrid[r].length !== 9) {
-                 console.error(`renderBoard: Некорректные данные в строке ${r}`);
-                 continue;
+                 console.error(`renderBoard: Некорректные данные в строке ${r}`); continue;
              }
             for (let c = 0; c < 9; c++) {
-                // Добавим проверку на существование cellData перед созданием элемента
                 if (userGrid[r][c] === undefined) {
                      console.error(`renderBoard: Отсутствуют данные для ячейки [${r}, ${c}]`);
-                     // Можно создать пустой элемент или пропустить
-                     const cellPlaceholder = document.createElement('div');
-                     cellPlaceholder.classList.add('cell');
-                     cellPlaceholder.textContent = '?';
-                     boardElement.appendChild(cellPlaceholder);
-                     continue;
+                     const cellPlaceholder = document.createElement('div'); cellPlaceholder.classList.add('cell'); cellPlaceholder.textContent = '?';
+                     boardElement.appendChild(cellPlaceholder); continue;
                 }
                 const cellElement = createCellElement(r, c);
                 boardElement.appendChild(cellElement);
@@ -302,61 +349,38 @@ document.addEventListener('DOMContentLoaded', () => {
     function createCellElement(r, c) {
         const cell = document.createElement('div');
         cell.classList.add('cell');
-        cell.dataset.row = r;
-        cell.dataset.col = c;
+        cell.dataset.row = r; cell.dataset.col = c;
 
         if (!userGrid[r] || userGrid[r][c] === undefined) {
              console.error(`createCellElement: Нет данных для ячейки [${r}, ${c}]`);
-             cell.textContent = '?';
-             return cell;
+             cell.textContent = '?'; return cell;
         }
         const cellData = userGrid[r][c];
-
-        const valueContainer = document.createElement('div');
-        valueContainer.classList.add('cell-value-container');
-
-        const notesContainer = document.createElement('div');
-        notesContainer.classList.add('cell-notes-container');
+        const valueContainer = document.createElement('div'); valueContainer.classList.add('cell-value-container');
+        const notesContainer = document.createElement('div'); notesContainer.classList.add('cell-notes-container');
 
         if (cellData.value !== 0) {
-            valueContainer.textContent = cellData.value;
-            valueContainer.style.display = 'flex';
-            notesContainer.style.display = 'none';
+            valueContainer.textContent = cellData.value; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none';
             const puzzleIndex = r * 9 + c;
             if (currentPuzzle && puzzleIndex < currentPuzzle.length) {
                  const puzzleChar = currentPuzzle[puzzleIndex];
-                 if (puzzleChar !== '.' && puzzleChar !== '0') {
-                     cell.classList.add('given');
-                 }
-            } else if (!currentPuzzle) {
-                // console.warn("createCellElement: currentPuzzle не определен при проверке 'given'");
-            }
-
+                 if (puzzleChar !== '.' && puzzleChar !== '0') cell.classList.add('given');
+            } else if (!currentPuzzle) { /* console.warn("currentPuzzle не определен"); */ }
         } else if (cellData.notes && cellData.notes.size > 0) {
-            valueContainer.style.display = 'none';
-            notesContainer.style.display = 'grid';
-            notesContainer.innerHTML = '';
+            valueContainer.style.display = 'none'; notesContainer.style.display = 'grid'; notesContainer.innerHTML = '';
             for (let n = 1; n <= 9; n++) {
-                const noteDigit = document.createElement('div');
-                noteDigit.classList.add('note-digit');
+                const noteDigit = document.createElement('div'); noteDigit.classList.add('note-digit');
                 noteDigit.textContent = cellData.notes.has(n) ? n : '';
                 notesContainer.appendChild(noteDigit);
             }
         } else {
-            valueContainer.textContent = '';
-            valueContainer.style.display = 'flex';
-            notesContainer.style.display = 'none';
+            valueContainer.textContent = ''; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none';
         }
-
-        cell.appendChild(valueContainer);
-        cell.appendChild(notesContainer);
-
+        cell.appendChild(valueContainer); cell.appendChild(notesContainer);
         if ((c + 1) % 3 === 0 && c < 8) cell.classList.add('thick-border-right');
         if ((r + 1) % 3 === 0 && r < 8) cell.classList.add('thick-border-bottom');
-
         return cell;
     }
-
 
     // --- Перерисовка ОДНОЙ ячейки ---
     function renderCell(r, c) {
@@ -366,160 +390,111 @@ document.addEventListener('DOMContentLoaded', () => {
             if (oldCell.classList.contains('selected')) newCell.classList.add('selected');
             if (oldCell.classList.contains('incorrect')) newCell.classList.add('incorrect');
             if (oldCell.classList.contains('highlighted')) newCell.classList.add('highlighted');
-            if (selectedRow === r && selectedCol === c) {
-                 selectedCell = newCell;
-            }
+            if (selectedRow === r && selectedCol === c) selectedCell = newCell;
             oldCell.replaceWith(newCell);
-        } else {
-            console.warn(`renderCell: Ячейка [${r}, ${c}] не найдена для перерисовки.`);
-        }
+        } else { console.warn(`renderCell: Ячейка [${r}, ${c}] не найдена.`); }
     }
 
     // --- Вспомогательные функции ---
     function getSolutionValue(row, col) {
         if (!currentSolution) return null;
         const index = row * 9 + col;
-         if (index >= currentSolution.length) {
-             console.error(`getSolutionValue: Индекс ${index} вне диапазона решения.`);
-             return null;
-         }
+         if (index >= currentSolution.length) { console.error(`getSolutionValue: Индекс ${index} вне диапазона.`); return null; }
         const char = currentSolution[index];
         return (char === '.' || char === '0') ? 0 : parseInt(char);
     }
-
     function clearSelection() {
-        if (selectedCell) {
-            selectedCell.classList.remove('selected');
-        }
-        boardElement.querySelectorAll('.cell.highlighted').forEach(cell => {
-            cell.classList.remove('highlighted');
-        });
-        selectedCell = null;
-        selectedRow = -1;
-        selectedCol = -1;
+        if (selectedCell) selectedCell.classList.remove('selected');
+        boardElement.querySelectorAll('.cell.highlighted').forEach(cell => cell.classList.remove('highlighted'));
+        selectedCell = null; selectedRow = -1; selectedCol = -1;
     }
-
     function clearErrors() {
-        boardElement.querySelectorAll('.cell.incorrect').forEach(cell => {
-            cell.classList.remove('incorrect');
-        });
-        statusMessageElement.textContent = '';
-        statusMessageElement.className = '';
+        boardElement.querySelectorAll('.cell.incorrect').forEach(cell => cell.classList.remove('incorrect'));
+        statusMessageElement.textContent = ''; statusMessageElement.className = '';
     }
-
     function updateNoteToggleButtonState() {
         if (noteToggleButton) {
-            if (isNoteMode) {
-                noteToggleButton.classList.add('active');
-                noteToggleButton.title = "Режим заметок (ВКЛ)";
-            } else {
-                noteToggleButton.classList.remove('active');
-                noteToggleButton.title = "Режим заметок (ВЫКЛ)";
-            }
-        } else {
-            console.warn("Кнопка режима заметок не найдена.");
-        }
+            noteToggleButton.classList.toggle('active', isNoteMode);
+            noteToggleButton.title = `Режим заметок (${isNoteMode ? 'ВКЛ' : 'ВЫКЛ'})`;
+        } else { console.warn("Кнопка режима заметок не найдена."); }
     }
-
     function updateHintButtonState() {
         if (hintButton) {
             hintButton.textContent = `💡 ${hintsRemaining}/${MAX_HINTS}`;
             hintButton.disabled = hintsRemaining <= 0 || !currentSolution;
             hintButton.title = hintButton.disabled ? "Подсказки закончились" : "Использовать подсказку";
-        } else {
-            console.warn("Кнопка подсказки не найдена.");
-        }
+        } else { console.warn("Кнопка подсказки не найдена."); }
     }
-
     function highlightRelatedCells(row, col) {
-        boardElement.querySelectorAll('.cell.highlighted').forEach(cell => {
-            cell.classList.remove('highlighted');
-        });
-        boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => {
-            cell.classList.add('highlighted');
-        });
+        boardElement.querySelectorAll('.cell.highlighted').forEach(cell => cell.classList.remove('highlighted'));
+        boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => cell.classList.add('highlighted'));
     }
 
     function provideHint() {
-        if (hintsRemaining <= 0) return;
-        if (!currentSolution || !userGrid) return;
-        if (!selectedCell) {
-            statusMessageElement.textContent = "Выберите ячейку для подсказки";
-            statusMessageElement.className = '';
-            setTimeout(() => { if (statusMessageElement.textContent === "Выберите ячейку для подсказки") statusMessageElement.textContent = ""; }, 2000);
-            return;
-        }
-        if (selectedCell.classList.contains('given')) {
-            statusMessageElement.textContent = "Нельзя получить подсказку для начальной ячейки";
-            statusMessageElement.className = '';
-            setTimeout(() => { if (statusMessageElement.textContent === "Нельзя получить подсказку для начальной ячейки") statusMessageElement.textContent = ""; }, 2000);
-            return;
-        }
+        // --- Сохраняем состояние ПЕРЕД изменением ---
+        pushHistoryState(); // Сохраняем до всех проверок, чтобы можно было отменить "пустое" действие подсказки
+        // ---
+        let hintUsed = false; // Флаг, что подсказка действительно сработала
+        try {
+            if (hintsRemaining <= 0) throw new Error("Подсказки закончились");
+            if (!currentSolution || !userGrid) throw new Error("Игра не готова");
+            if (!selectedCell) throw new Error("Выберите ячейку для подсказки");
+            if (selectedCell.classList.contains('given')) throw new Error("Нельзя получить подсказку для начальной ячейки");
 
-        const r = selectedRow;
-        const c = selectedCol;
-        if (!userGrid[r] || userGrid[r][c] === undefined) return;
-        if (userGrid[r][c].value !== 0) {
-            statusMessageElement.textContent = "Ячейка уже заполнена";
-             statusMessageElement.className = '';
-            setTimeout(() => { if (statusMessageElement.textContent === "Ячейка уже заполнена") statusMessageElement.textContent = ""; }, 2000);
-            return;
-        }
+            const r = selectedRow; const c = selectedCol;
+            if (!userGrid[r] || userGrid[r][c] === undefined) throw new Error(`Внутренняя ошибка: нет данных для ячейки [${r},${c}]`);
+            if (userGrid[r][c].value !== 0) throw new Error("Ячейка уже заполнена");
 
-        const solutionValue = getSolutionValue(r, c);
-        if (solutionValue !== null && solutionValue !== 0) {
-            console.log(`Подсказка для [${r}, ${c}]: ${solutionValue}`);
-            userGrid[r][c].value = solutionValue;
-            if (userGrid[r][c].notes) userGrid[r][c].notes.clear();
-
-            renderCell(r, c);
-
-            const hintedCellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-            if (hintedCellElement) {
-                hintedCellElement.classList.remove('selected');
-                hintedCellElement.style.transition = 'background-color 0.1s ease-out';
-                hintedCellElement.style.backgroundColor = '#fffacd';
-                setTimeout(() => {
-                    hintedCellElement.style.backgroundColor = '';
-                    hintedCellElement.style.transition = '';
-                    clearSelection();
-                }, 500);
+            const solutionValue = getSolutionValue(r, c);
+            if (solutionValue !== null && solutionValue !== 0) {
+                console.log(`Подсказка для [${r}, ${c}]: ${solutionValue}`);
+                userGrid[r][c].value = solutionValue;
+                if (userGrid[r][c].notes) userGrid[r][c].notes.clear();
+                renderCell(r, c);
+                const hintedCellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
+                if (hintedCellElement) {
+                    hintedCellElement.classList.remove('selected');
+                    hintedCellElement.style.transition = 'background-color 0.1s ease-out';
+                    hintedCellElement.style.backgroundColor = '#fffacd';
+                    setTimeout(() => {
+                        hintedCellElement.style.backgroundColor = '';
+                        hintedCellElement.style.transition = '';
+                        clearSelection();
+                    }, 500);
+                } else { clearSelection(); }
+                hintsRemaining--;
+                hintUsed = true; // Подсказка сработала
+                updateHintButtonState();
+                clearErrors();
+                saveGameState(); // Сохраняем после использования подсказки
             } else {
-                 clearSelection();
+                 throw new Error(`Ошибка получения решения для [${r}, ${c}]`);
             }
+        } catch (error) {
+             console.log("Ошибка подсказки:", error.message);
+             statusMessageElement.textContent = error.message;
+             statusMessageElement.className = error.message.includes("Ошибка") ? 'incorrect-msg' : ''; // Сообщение об ошибке или информационное
+             setTimeout(() => { if (statusMessageElement.textContent === error.message) statusMessageElement.textContent = ""; }, 2000);
 
-            hintsRemaining--;
-            updateHintButtonState();
-            clearErrors();
-            saveGameState(); // <<< Сохраняем после использования подсказки
-
-        } else {
-            console.error(`Не удалось получить значение решения для [${r}, ${c}]`);
-            statusMessageElement.textContent = "Ошибка получения подсказки";
-            statusMessageElement.className = 'incorrect-msg';
+             // Если подсказка не сработала, удаляем добавленное состояние из истории
+             if (!hintUsed) {
+                  historyStack.pop(); // Удаляем ошибочно добавленное состояние
+                  updateUndoButtonState(); // Обновляем кнопку, т.к. состояние могло стать пустым
+             }
         }
     }
-
 
     // --- Обработчики событий ---
 
     boardElement.addEventListener('click', (event) => {
         const target = event.target.closest('.cell');
         if (!target) return;
-        const r = parseInt(target.dataset.row);
-        const c = parseInt(target.dataset.col);
+        const r = parseInt(target.dataset.row); const c = parseInt(target.dataset.col);
         if (isNaN(r) || isNaN(c)) return;
-
-        if (target === selectedCell) {
-            clearSelection();
-        } else {
-            clearSelection();
-            selectedCell = target;
-            selectedRow = r;
-            selectedCol = c;
-            if (!selectedCell.classList.contains('given')) {
-                selectedCell.classList.add('selected');
-            }
+        if (target === selectedCell) { clearSelection(); }
+        else {
+            clearSelection(); selectedCell = target; selectedRow = r; selectedCol = c;
+            if (!selectedCell.classList.contains('given')) selectedCell.classList.add('selected');
             highlightRelatedCells(r, c);
         }
         clearErrors();
@@ -528,272 +503,173 @@ document.addEventListener('DOMContentLoaded', () => {
     numpad.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
-
-        if (button.id === 'note-toggle-button') {
-            isNoteMode = !isNoteMode;
-            updateNoteToggleButtonState();
-            return;
-        }
-
+        if (button.id === 'note-toggle-button') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); return; }
         if (!selectedCell || selectedCell.classList.contains('given')) {
-             if(selectedCell && selectedCell.classList.contains('given')) {
-                 statusMessageElement.textContent = "Эту ячейку нельзя изменить";
-                 statusMessageElement.className = '';
+             if(selectedCell?.classList.contains('given')) { // Optional chaining
+                 statusMessageElement.textContent = "Эту ячейку нельзя изменить"; statusMessageElement.className = '';
                  setTimeout(() => { if(statusMessageElement.textContent === "Эту ячейку нельзя изменить") statusMessageElement.textContent = ""; }, 1500);
              }
             return;
         }
-
         clearErrors();
-         if (!userGrid[selectedRow] || userGrid[selectedRow][selectedCol] === undefined) return;
+        if (!userGrid[selectedRow]?.[selectedCol]) return; // Проверка существования
         const cellData = userGrid[selectedRow][selectedCol];
         let needsRender = false;
-        let stateChanged = false; // <<< Флаг для сохранения
+        let stateChanged = false;
 
+        // --- Проверка, будет ли действие изменять состояние ---
+        let potentialChange = false;
         if (button.id === 'erase-button') {
-            if (cellData.value !== 0) {
-                cellData.value = 0;
-                needsRender = true; stateChanged = true;
-            } else if (cellData.notes && cellData.notes.size > 0) {
-                cellData.notes.clear();
-                needsRender = true; stateChanged = true;
-            }
+            potentialChange = (cellData.value !== 0) || (cellData.notes && cellData.notes.size > 0);
+        } else if (button.dataset.num) {
+             const num = parseInt(button.dataset.num);
+             if (isNoteMode) { potentialChange = (cellData.value === 0); } // Заметки можно менять только в пустой
+             else { potentialChange = (cellData.value !== num); } // Значение изменится или сотрется
+        }
+
+        // --- Сохраняем предыдущее состояние, ТОЛЬКО если будет изменение ---
+        if (potentialChange) {
+             pushHistoryState();
+        }
+
+        // --- Выполняем действие ---
+        if (button.id === 'erase-button') {
+            if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; }
+            else if (cellData.notes && cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; }
         } else if (button.dataset.num) {
             const num = parseInt(button.dataset.num);
             if (isNoteMode) {
-                if (cellData.value === 0) {
+                 if (cellData.value === 0) {
                      if (!cellData.notes) cellData.notes = new Set();
-                    if (cellData.notes.has(num)) {
-                        cellData.notes.delete(num);
-                    } else {
-                        cellData.notes.add(num);
-                    }
-                    needsRender = true; stateChanged = true;
-                } else {
-                    statusMessageElement.textContent = "Сначала сотрите цифру";
-                    statusMessageElement.className = '';
-                    setTimeout(() => { if(statusMessageElement.textContent === "Сначала сотрите цифру") statusMessageElement.textContent = ""; }, 1500);
-                }
+                     if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num);
+                     needsRender = true; stateChanged = true;
+                 } else { /* Сообщение: Сначала сотрите цифру */ }
             } else {
-                if (cellData.value !== num) {
-                    cellData.value = num;
-                    if (cellData.notes && cellData.notes.size > 0) cellData.notes.clear();
-                    needsRender = true; stateChanged = true;
-                } else {
-                    cellData.value = 0;
-                    needsRender = true; stateChanged = true;
-                }
+                 if (cellData.value !== num) {
+                     cellData.value = num;
+                     if (cellData.notes && cellData.notes.size > 0) cellData.notes.clear();
+                     needsRender = true; stateChanged = true;
+                 } else { // Стирание повторным кликом
+                     cellData.value = 0;
+                     needsRender = true; stateChanged = true;
+                 }
             }
         }
 
-        if (needsRender) {
-            renderCell(selectedRow, selectedCol);
-        }
-        if (stateChanged) { // <<< Сохраняем только если что-то изменилось
-            saveGameState();
-        }
+        if (needsRender) renderCell(selectedRow, selectedCol);
+        if (stateChanged) saveGameState(); // Сохраняем итоговое состояние, если изменилось
     });
 
     document.addEventListener('keydown', (event) => {
-         if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
-
-        if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') {
-            isNoteMode = !isNoteMode;
-            updateNoteToggleButtonState();
-            event.preventDefault();
-            return;
-        }
-
-         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-            if (!selectedCell) {
-                 const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`);
-                 if (startCell) startCell.click();
-                 else return;
-             }
-            let nextRow = selectedRow; let nextCol = selectedCol;
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); handleUndo(); return; }
+        if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault(); return; }
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+             if (!selectedCell) { const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`); if (startCell) startCell.click(); else return; }
+             let nextRow = selectedRow; let nextCol = selectedCol;
              const move = (current, delta, max) => Math.min(max, Math.max(0, current + delta));
-            if (event.key === 'ArrowUp') nextRow = move(selectedRow, -1, 8);
-            if (event.key === 'ArrowDown') nextRow = move(selectedRow, 1, 8);
-            if (event.key === 'ArrowLeft') nextCol = move(selectedCol, -1, 8);
-            if (event.key === 'ArrowRight') nextCol = move(selectedCol, 1, 8);
-
-            if (nextRow !== selectedRow || nextCol !== selectedCol) {
-                 const nextCellElement = boardElement.querySelector(`.cell[data-row='${nextRow}'][data-col='${nextCol}']`);
-                 if (nextCellElement) nextCellElement.click();
-            }
-            event.preventDefault();
-            return;
+             if (event.key === 'ArrowUp') nextRow = move(selectedRow, -1, 8); if (event.key === 'ArrowDown') nextRow = move(selectedRow, 1, 8);
+             if (event.key === 'ArrowLeft') nextCol = move(selectedCol, -1, 8); if (event.key === 'ArrowRight') nextCol = move(selectedCol, 1, 8);
+             if (nextRow !== selectedRow || nextCol !== selectedCol) { const nextCellElement = boardElement.querySelector(`.cell[data-row='${nextRow}'][data-col='${nextCol}']`); if (nextCellElement) nextCellElement.click(); }
+             event.preventDefault(); return;
         }
-
         if (!selectedCell || selectedCell.classList.contains('given')) return;
-        if (!userGrid[selectedRow] || userGrid[selectedRow][selectedCol] === undefined) return;
+        if (!userGrid[selectedRow]?.[selectedCol]) return;
 
         const cellData = userGrid[selectedRow][selectedCol];
         let needsRender = false;
-        let stateChanged = false; // <<< Флаг для сохранения
+        let stateChanged = false;
+        let potentialChange = false;
 
+        // --- Проверяем потенциальное изменение ПЕРЕД сохранением истории ---
         if (event.key >= '1' && event.key <= '9') {
-            clearErrors();
             const num = parseInt(event.key);
-            if (isNoteMode) {
-                if (cellData.value === 0) {
-                    if (!cellData.notes) cellData.notes = new Set();
-                    if (cellData.notes.has(num)) cellData.notes.delete(num);
-                    else cellData.notes.add(num);
-                    needsRender = true; stateChanged = true;
-                }
-            } else {
-                if (cellData.value !== num) {
-                    cellData.value = num;
-                     if (cellData.notes && cellData.notes.size > 0) cellData.notes.clear();
-                    needsRender = true; stateChanged = true;
-                } else {
-                    cellData.value = 0;
-                    needsRender = true; stateChanged = true;
-                }
-            }
-            event.preventDefault();
+            if (isNoteMode) { potentialChange = (cellData.value === 0); }
+            else { potentialChange = (cellData.value !== num); }
         } else if (event.key === 'Backspace' || event.key === 'Delete') {
-            clearErrors();
-            if (cellData.value !== 0) {
-                cellData.value = 0;
-                needsRender = true; stateChanged = true;
-            } else if (cellData.notes && cellData.notes.size > 0) {
-                cellData.notes.clear();
-                needsRender = true; stateChanged = true;
-            }
-            event.preventDefault();
+            potentialChange = (cellData.value !== 0) || (cellData.notes && cellData.notes.size > 0);
         }
 
-        if (needsRender && selectedRow !== -1 && selectedCol !== -1) {
-            renderCell(selectedRow, selectedCol);
+        // --- Сохраняем историю, если изменение будет ---
+        if (potentialChange) {
+            pushHistoryState();
         }
-         if (stateChanged) { // <<< Сохраняем после изменений с клавиатуры
-             saveGameState();
-         }
+
+        // --- Применяем изменения ---
+        if (event.key >= '1' && event.key <= '9') {
+             clearErrors(); const num = parseInt(event.key);
+             if (isNoteMode) {
+                 if (cellData.value === 0) { if (!cellData.notes) cellData.notes = new Set(); if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; stateChanged = true; }
+             } else {
+                 if (cellData.value !== num) { cellData.value = num; if (cellData.notes?.size > 0) cellData.notes.clear(); needsRender = true; stateChanged = true; }
+                 else { cellData.value = 0; needsRender = true; stateChanged = true; } // Стирание повторным нажатием
+             }
+             event.preventDefault();
+        } else if (event.key === 'Backspace' || event.key === 'Delete') {
+             clearErrors();
+             if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; }
+             else if (cellData.notes && cellData.notes.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; }
+             event.preventDefault();
+        }
+
+        if (needsRender) renderCell(selectedRow, selectedCol);
+        if (stateChanged) saveGameState(); // Сохраняем итоговое состояние
     });
 
     checkButton.addEventListener('click', () => {
         console.log("Нажата кнопка 'Проверить'");
-        clearErrors();
-        if (!currentSolution || !userGrid) return;
-
-        let allCorrect = true;
-        let boardComplete = true;
-
-        for (let r = 0; r < 9; r++) {
-             if (!userGrid[r]) continue;
-            for (let c = 0; c < 9; c++) {
-                 if (userGrid[r][c] === undefined) continue;
-                const cellData = userGrid[r][c];
-                const userValue = cellData.value;
-                const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-                if (!cellElement) continue;
-
-                if (userValue === 0) {
-                    boardComplete = false;
-                } else if (!cellElement.classList.contains('given')) {
-                    const solutionValue = getSolutionValue(r, c);
-                    if (userValue !== solutionValue) {
-                        cellElement.classList.add('incorrect');
-                        allCorrect = false;
-                    }
-                }
-            }
-        }
-
+        clearErrors(); if (!currentSolution || !userGrid) return;
+        let allCorrect = true; let boardComplete = true;
+        for (let r = 0; r < 9; r++) { if (!userGrid[r]) continue; for (let c = 0; c < 9; c++) { if (userGrid[r][c] === undefined) continue; const cellData = userGrid[r][c]; const userValue = cellData.value; const cellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (!cellElement) continue; if (userValue === 0) { boardComplete = false; } else if (!cellElement.classList.contains('given')) { const solutionValue = getSolutionValue(r, c); if (userValue !== solutionValue) { cellElement.classList.add('incorrect'); allCorrect = false; } } } }
         if (allCorrect && boardComplete) {
-            statusMessageElement.textContent = "Поздравляем! Судоку решено верно!";
-            statusMessageElement.className = 'correct';
-            stopTimer();
-            clearSelection();
-            hintButton.disabled = true;
-            clearSavedGameState(); // <<< Очищаем сохранение при победе
-        } else if (!allCorrect) {
-            statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены.";
-            statusMessageElement.className = 'incorrect-msg';
-        } else {
-            statusMessageElement.textContent = "Пока все верно, но поле не заполнено.";
-            statusMessageElement.className = '';
-        }
+            statusMessageElement.textContent = "Поздравляем! Судоку решено верно!"; statusMessageElement.className = 'correct';
+            stopTimer(); clearSelection(); hintButton.disabled = true;
+            clearSavedGameState(); historyStack = []; updateUndoButtonState(); // Очищаем всё при победе
+        } else if (!allCorrect) { statusMessageElement.textContent = "Найдены ошибки. Неверные ячейки выделены."; statusMessageElement.className = 'incorrect-msg'; }
+        else { statusMessageElement.textContent = "Пока все верно, но поле не заполнено."; statusMessageElement.className = ''; }
     });
 
-    newGameButton.addEventListener('click', () => {
-        console.log("Нажата кнопка 'Новая игра'");
-        stopTimer(); // Останавливаем таймер и сохраняем текущее состояние перед показом модалки
-        showDifficultyModal();
-    });
+    newGameButton.addEventListener('click', () => { console.log("Нажата кнопка 'Новая игра'"); stopTimer(); showDifficultyModal(); });
 
-    if (hintButton) {
-        hintButton.addEventListener('click', provideHint);
-    } else { console.error("Кнопка подсказки не найдена!"); }
+    if (undoButton) { undoButton.addEventListener('click', handleUndo); } else { console.error("Кнопка Отмена не найдена!"); }
+    if (hintButton) { hintButton.addEventListener('click', provideHint); } else { console.error("Кнопка Подсказка не найдена!"); }
 
     if(modalButtonsContainer) {
         modalButtonsContainer.addEventListener('click', (event) => {
-            const target = event.target.closest('button');
-            if(!target) return;
-
-            if (target.classList.contains('difficulty-button')) {
-                const difficulty = target.dataset.difficulty;
-                if (difficulty) {
-                    console.log(`Выбрана сложность: ${difficulty} (Начало новой игры)`);
-                    hideDifficultyModal();
-                    // Явно очищаем сохранение перед началом НОВОЙ игры
-                    clearSavedGameState(); // <<< Очищаем здесь
-                    setTimeout(() => initGame(difficulty), 50); // Запускаем новую игру без восстановления
-                }
-            } else if (target.id === 'cancel-difficulty-button') {
-                console.log("Выбор сложности отменен.");
-                hideDifficultyModal();
-                // Возобновляем таймер, если игра не была решена
-                if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
-                    let isSolved = !boardElement.querySelector('.cell:not(.given):empty'); // Проверяем, есть ли пустые ячейки (упрощенно)
-                     if (!isSolved) {
-                         // Проверяем, были ли ошибки при последней проверке
-                         const hasErrors = boardElement.querySelector('.cell.incorrect');
-                         if(!hasErrors) startTimer(); // Запускаем таймер только если нет ошибок и игра не решена
-                     }
-                }
-            }
+             const target = event.target.closest('button'); if(!target) return;
+             if (target.classList.contains('difficulty-button')) {
+                 const difficulty = target.dataset.difficulty;
+                 if (difficulty) {
+                     console.log(`Выбрана сложность: ${difficulty} (Начало новой игры)`);
+                     hideDifficultyModal(); clearSavedGameState(); historyStack = []; updateUndoButtonState();
+                     setTimeout(() => initGame(difficulty), 50);
+                 }
+             } else if (target.id === 'cancel-difficulty-button') {
+                 console.log("Выбор сложности отменен."); hideDifficultyModal();
+                 if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
+                      let isSolved = true; /* ... проверка на решение ... */ if (!isSolved) startTimer();
+                 }
+             }
         });
     } else { console.error("Контейнер кнопок модального окна не найден."); }
 
     if(modalOverlay) {
-        modalOverlay.addEventListener('click', () => {
-            console.log("Клик по оверлею, закрытие модального окна.");
-            hideDifficultyModal();
-             // Логика восстановления таймера (аналогично кнопке Отмена)
-            if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
-                 let isSolved = !boardElement.querySelector('.cell:not(.given):empty');
-                  if (!isSolved) {
-                         const hasErrors = boardElement.querySelector('.cell.incorrect');
-                         if(!hasErrors) startTimer();
-                  }
-            }
-        });
-    } else { console.error("Оверлей модального окна не найден."); }
+         modalOverlay.addEventListener('click', () => {
+             console.log("Клик по оверлею, закрытие модального окна."); hideDifficultyModal();
+             if (currentPuzzle && timerInterval === null && secondsElapsed > 0) {
+                 let isSolved = true; /* ... проверка на решение ... */ if (!isSolved) startTimer();
+             }
+         });
+     } else { console.error("Оверлей модального окна не найден."); }
 
-     try {
-         if (window.Telegram && window.Telegram.WebApp) {
-             window.Telegram.WebApp.ready();
-             console.log("Telegram WebApp SDK инициализирован.");
-         } else {
-             console.log("Telegram WebApp SDK не найден.");
-         }
-     } catch (e) { console.error("Ошибка инициализации Telegram WebApp SDK:", e); }
+    try { if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); console.log("TG SDK init."); } else { console.log("TG SDK not found."); } } catch (e) { console.error("TG SDK Error:", e); }
 
-    // --- Первый запуск игры --- // <<< ИЗМЕНЕНА ЛОГИКА ЗАПУСКА
+    // --- Первый запуск игры ---
     const savedGame = loadGameState();
     if (savedGame) {
-        // Используем confirm для простоты, можно заменить на кастомное модальное окно
-        if (confirm("Найдена сохраненная игра. Продолжить?")) {
-            initGame(savedGame.difficulty, savedGame); // Запускаем с восстановлением
-        } else {
-            clearSavedGameState(); // Пользователь отказался, удаляем сохранение
-            initGame(); // Запускаем новую игру по умолчанию
-        }
-    } else {
-        initGame(); // Нет сохранения, запускаем новую игру по умолчанию
-    }
+        if (confirm(`Найдена сохраненная игра (${savedGame.difficulty || 'сложность не указ.'}) от ${new Date(savedGame.timestamp).toLocaleString()}. Продолжить?`)) {
+            initGame(savedGame.difficulty, savedGame);
+        } else { clearSavedGameState(); initGame(); }
+    } else { initGame(); }
 
 }); // Конец 'DOMContentLoaded'
