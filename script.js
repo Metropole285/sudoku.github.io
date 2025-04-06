@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedCell = null;
         selectedRow = -1;
         selectedCol = -1;
-        // console.log("Selection cleared."); // Можно раскомментировать для отладки
+        // console.log("Selection cleared.");
     }
 
     // Очистка подсветки ошибок и статуса
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 noteToggleButton.classList.remove('active');
                 noteToggleButton.title = "Режим заметок (ВЫКЛ)";
             }
-            // console.log(`Note mode toggled: ${isNoteMode}`); // Можно раскомментировать для отладки
+            // console.log(`Note mode toggled: ${isNoteMode}`);
         } else {
             console.warn("Кнопка режима заметок не найдена.");
         }
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // === ИЗМЕНЕНИЕ ЗДЕСЬ: Функция подсветки СТРОКИ и СТОЛБЦА ===
+    // Функция подсветки строки и столбца
     function highlightRelatedCells(row, col) {
         // Сначала убираем старую подсветку
         boardElement.querySelectorAll('.cell.highlighted').forEach(cell => {
@@ -322,85 +322,97 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Подсвечиваем ТОЛЬКО строку и столбец
         boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => {
-            // Применяем класс 'highlighted' ко всем ячейкам в строке и столбце.
-            // Сама выбранная ячейка тоже получит этот класс, но её стиль '.selected'
-            // (если он есть) будет иметь приоритет или смешается с '.highlighted' в CSS.
             cell.classList.add('highlighted');
         });
 
-        // --- БЛОК ПОДСВЕТКИ 3x3 УДАЛЕН ---
-
-        console.log(`Подсвечены строка ${row} и столбец ${col}.`); // Обновленный лог
+        // console.log(`Подсвечены строка ${row} и столбец ${col}.`);
     }
-    // ==========================================================
 
-    // Функция предоставления подсказки
+
+    // === ИЗМЕНЕНИЕ ЗДЕСЬ: Функция предоставления подсказки для ВЫБРАННОЙ ячейки ===
     function provideHint() {
-        if (hintsRemaining <= 0 || !currentSolution || !userGrid) {
-            console.log("Подсказка недоступна (закончились или игра не готова).");
+        // 1. Проверка общих условий
+        if (hintsRemaining <= 0) {
+            console.log("Подсказка недоступна: закончились.");
+            // Кнопка и так disabled, сообщение не обязательно
+            return;
+        }
+        if (!currentSolution || !userGrid) {
+            console.log("Подсказка недоступна: игра не готова.");
             return;
         }
 
-        let hinted = false;
-        // Ищем первую пустую ячейку, которую пользователь может заполнить
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                const index = r * 9 + c;
-                // Проверяем, что индекс в пределах строки головоломки
-                if (index >= currentPuzzle.length) continue;
-                const isGiven = currentPuzzle[index] !== '.' && currentPuzzle[index] !== '0';
-                 // Проверяем, что ячейка в userGrid существует
-                 if (!userGrid[r] || !userGrid[r][c]) continue;
-                const isEmpty = userGrid[r][c].value === 0;
-
-                if (!isGiven && isEmpty) {
-                    const solutionValue = getSolutionValue(r, c);
-                    if (solutionValue !== null && solutionValue !== 0) {
-                        console.log(`Подсказка для [${r}, ${c}]: ${solutionValue}`);
-                        userGrid[r][c].value = solutionValue; // Устанавливаем значение
-                        if (userGrid[r][c].notes) userGrid[r][c].notes.clear(); // Очищаем заметки, если они есть
-                        renderCell(r, c); // Перерисовываем ячейку
-
-                        // Кратковременно подсветим ячейку с подсказкой
-                        const hintedCellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-                        if (hintedCellElement) {
-                            hintedCellElement.style.transition = 'background-color 0.1s ease-out'; // Быстрый переход
-                            hintedCellElement.style.backgroundColor = '#fffacd'; // LemonChiffon
-                            setTimeout(() => {
-                                // Возвращаем исходный фон через короткое время
-                                hintedCellElement.style.backgroundColor = '';
-                                hintedCellElement.style.transition = ''; // Убираем инлайн-переход
-                                // После снятия подсветки, если ячейка была выбрана/подсвечена,
-                                // соответствующие классы должны быть применены снова, если нужно.
-                                // Проще всего - перерисовать или обновить классы.
-                                // Но пока оставим так, основной эффект достигнут.
-                            }, 500); // 0.5 секунды подсветки
-                        }
-
-
-                        hintsRemaining--;
-                        updateHintButtonState();
-                        clearErrors(); // Убираем возможные предыдущие сообщения об ошибках
-                        clearSelection(); // Сбрасываем выделение для наглядности
-                        hinted = true;
-                        break; // Выходим из внутреннего цикла
-                    }
-                }
-            }
-            if (hinted) break; // Выходим из внешнего цикла
+        // 2. Проверка выбранной ячейки
+        if (!selectedCell) {
+            console.log("Подсказка невозможна: ячейка не выбрана.");
+            statusMessageElement.textContent = "Выберите ячейку для подсказки";
+            statusMessageElement.className = ''; // Не ошибка
+            setTimeout(() => { if (statusMessageElement.textContent === "Выберите ячейку для подсказки") statusMessageElement.textContent = ""; }, 2000);
+            return;
         }
 
-        if (!hinted) {
-            console.log("Не найдено пустых ячеек для подсказки (возможно, поле заполнено).");
-            statusMessageElement.textContent = "Нет места для подсказки!";
-            statusMessageElement.className = ''; // Не ошибка, просто информация
-            setTimeout(() => {
-                if (statusMessageElement.textContent === "Нет места для подсказки!") {
-                    statusMessageElement.textContent = ""; // Очищаем через время
-                }
-            }, 2000);
+        // 3. Проверка, не 'given' ли ячейка
+        if (selectedCell.classList.contains('given')) {
+            console.log("Подсказка невозможна: выбрана начальная ячейка.");
+            statusMessageElement.textContent = "Нельзя получить подсказку для начальной ячейки";
+            statusMessageElement.className = ''; // Не ошибка
+            setTimeout(() => { if (statusMessageElement.textContent === "Нельзя получить подсказку для начальной ячейки") statusMessageElement.textContent = ""; }, 2000);
+            return;
+        }
+
+        // 4. Проверка, не заполнена ли ячейка уже
+        const r = selectedRow;
+        const c = selectedCol;
+        if (!userGrid[r] || userGrid[r][c] === undefined) {
+             console.error(`Данные userGrid для [${r},${c}] отсутствуют при запросе подсказки.`);
+             return;
+        }
+        if (userGrid[r][c].value !== 0) {
+            console.log("Подсказка не нужна: ячейка уже заполнена.");
+            statusMessageElement.textContent = "Ячейка уже заполнена";
+             statusMessageElement.className = ''; // Не ошибка
+            setTimeout(() => { if (statusMessageElement.textContent === "Ячейка уже заполнена") statusMessageElement.textContent = ""; }, 2000);
+            return;
+        }
+
+        // 5. Все проверки пройдены, даем подсказку
+        const solutionValue = getSolutionValue(r, c);
+        if (solutionValue !== null && solutionValue !== 0) {
+            console.log(`Подсказка для [${r}, ${c}]: ${solutionValue}`);
+            userGrid[r][c].value = solutionValue; // Устанавливаем значение
+            if (userGrid[r][c].notes) userGrid[r][c].notes.clear(); // Очищаем заметки
+
+            renderCell(r, c); // Перерисовываем ячейку
+
+            // Кратковременно подсветим ячейку с подсказкой
+            const hintedCellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); // Ищем заново, т.к. renderCell заменил элемент
+            if (hintedCellElement) {
+                 // Убедимся, что стиль selected снят (если он был), чтобы подсветка была видна
+                hintedCellElement.classList.remove('selected');
+                // Подсвечиваем
+                hintedCellElement.style.transition = 'background-color 0.1s ease-out';
+                hintedCellElement.style.backgroundColor = '#fffacd'; // LemonChiffon
+                setTimeout(() => {
+                    hintedCellElement.style.backgroundColor = '';
+                    hintedCellElement.style.transition = '';
+                    // Важно: Снимаем выделение и подсветку после подсказки
+                    clearSelection();
+                }, 500);
+            } else {
+                 clearSelection(); // Все равно снимаем выделение
+            }
+
+            hintsRemaining--;
+            updateHintButtonState();
+            clearErrors(); // Убираем возможные предыдущие сообщения об ошибках
+
+        } else {
+            console.error(`Не удалось получить значение решения для [${r}, ${c}]`);
+            statusMessageElement.textContent = "Ошибка получения подсказки";
+            statusMessageElement.className = 'incorrect-msg';
         }
     }
+    // ========================================================================
 
 
     // --- Обработчики событий ---
@@ -429,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedCell.classList.add('selected');
             }
             // Подсвечиваем связанные ячейки (строку и столбец)
-            highlightRelatedCells(r, c); // Вызов ОБНОВЛЕННОЙ функции
+            highlightRelatedCells(r, c);
         }
         clearErrors(); // Убираем подсветку ошибок при клике на любую ячейку
     });
@@ -534,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Разрешаем навигацию стрелками всегда
          if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-            if (!selectedCell) { // Если ничего не выбрано, выбираем центральную ячейку или (0,0)
+            if (!selectedCell) { // Если ничего не выбрано, выбираем (0,0)
                  const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`);
                  if (startCell) startCell.click();
                  else return; // Не можем начать навигацию
