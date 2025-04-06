@@ -7,7 +7,7 @@ body {
     margin: 0;
     padding: 10px;
     background-color: #f0f0f0;
-    touch-action: manipulation;
+    touch-action: manipulation; /* Предотвращает масштабирование двойным тапом на мобильных */
     min-height: 100vh;
     box-sizing: border-box;
 }
@@ -21,126 +21,278 @@ h1 {
 /* ===== Стили доски Судоку ===== */
 #sudoku-board {
     display: grid;
-    grid-template-columns: repeat(9, minmax(30px, 10vw));
+    grid-template-columns: repeat(9, minmax(30px, 10vw)); /* Минимальный размер ячейки 30px, масштабируется до 10% ширины viewport */
     grid-template-rows: repeat(9, minmax(30px, 10vw));
-    width: clamp(270px, 90vw, 500px);
-    height: clamp(270px, 90vw, 500px);
+    width: clamp(270px, 90vw, 500px); /* Ширина доски: мин 270px, предп. 90% viewport, макс 500px */
+    height: clamp(270px, 90vw, 500px);/* Высота доски: аналогично ширине */
     border: 3px solid black;
     margin-bottom: 15px;
     background-color: white;
-    overflow: hidden;
-    transition: filter 0.3s ease-in-out;
+    overflow: hidden; /* Обрезаем все, что выходит за границы доски */
+    transition: filter 0.3s ease-in-out; /* Для плавного размытия модальным окном */
 }
 
 /* --- Стили ячеек и их границ --- */
 .cell {
-    display: flex;
+    display: flex; /* Используем flex для центрирования содержимого (хотя вложенные контейнеры перекрывают) */
     justify-content: center;
     align-items: center;
     border: 1px solid #ccc; /* Базовая тонкая серая граница */
     cursor: pointer;
-    box-sizing: border-box;
-    user-select: none;
+    box-sizing: border-box; /* Чтобы padding и border входили в размер элемента */
+    user-select: none; /* Запрещаем выделение текста в ячейках */
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    position: relative;
-    overflow: hidden;
+    position: relative; /* Для позиционирования вложенных контейнеров */
+    overflow: hidden; /* Обрезаем содержимое, если оно вдруг выйдет за пределы ячейки */
     transition: background-color 0.1s ease-in-out; /* Плавный переход фона */
 }
 
-/* Убираем "двойные" тонкие линии */
-.cell:nth-child(n+10) { border-top: none; }
-.cell:not(:nth-child(9n+1)) { border-left: none; }
+/* Убираем "двойные" тонкие линии, т.к. у каждой ячейки есть свои */
+.cell:nth-child(n+10) { /* У всех ячеек, начиная с 10-й (вторая строка и ниже) убираем верхнюю границу */
+    border-top: none;
+}
+.cell:not(:nth-child(9n+1)) { /* У всех ячеек, КРОМЕ первой в каждой строке, убираем левую границу */
+    border-left: none;
+}
 
-/* Толстые черные линии для границ блоков */
-.thick-border-bottom { border-bottom-width: 2px !important; border-bottom-color: black !important; }
-.thick-border-right { border-right-width: 2px !important; border-right-color: black !important; }
+/* Толстые черные линии для границ блоков 3x3 */
+/* Применяются к ячейкам в 3-м и 6-м столбцах (для правой границы) */
+.thick-border-right {
+    border-right-width: 2px !important; /* !important нужен, чтобы перекрыть селектор .cell:not(:nth-child(9n+1)) */
+    border-right-color: black !important;
+}
+/* Применяются к ячейкам в 3-й и 6-й строках (для нижней границы) */
+.thick-border-bottom {
+    border-bottom-width: 2px !important; /* !important нужен, чтобы перекрыть селектор .cell:nth-child(n+10) */
+    border-bottom-color: black !important;
+}
 
 /* --- Контейнеры внутри ячейки --- */
 .cell-value-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; justify-content: center; align-items: center;
-    font-size: clamp(16px, 5vw, 24px); line-height: 1;
+    font-size: clamp(16px, 5vw, 24px); /* Основная цифра: мин 16px, предп. 5% viewport, макс 24px */
+    line-height: 1;
     font-weight: bold; /* Все цифры жирные */
-    /* Цвет моря для введенных цифр (по умолчанию) */
+    /* Цвет моря для введенных пользователем цифр (по умолчанию) */
     color: #026bff;
 }
 .cell-notes-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-    gap: 0px; padding: 1px; box-sizing: border-box; display: none;
+    gap: 0px; /* Без отступов между заметками */
+    padding: 1px; /* Небольшой отступ от краев ячейки */
+    box-sizing: border-box;
+    display: none; /* По умолчанию скрыт, пока не появятся заметки */
 }
 .note-digit {
     display: flex; justify-content: center; align-items: center;
-    font-size: clamp(8px, 2vw, 10px); line-height: 1; color: #555; text-align: center;
+    /* === ИЗМЕНЕНИЕ ЗДЕСЬ === */
+    font-size: clamp(10px, 2.3vw, 13px); /* Заметки: мин 10px, предп. 2.3% viewport, макс 13px (было 8px, 2vw, 10px) */
+    line-height: 1; color: #555; text-align: center;
 }
 
 /* --- Стили для состояний ячеек --- */
 
-/* 1. Базовый вид "given" ячейки - БЕЗ ФОНА */
+/* 1. Базовый вид "given" ячейки (предустановленные цифры) - БЕЗ ФОНА */
 .cell.given {
-    background-color: #ffffff;
-    cursor: default;
+    background-color: #ffffff; /* Белый фон, как у пустой */
+    cursor: default; /* Курсор по умолчанию, т.к. нельзя редактировать */
 }
 /* Возвращаем стандартный темный цвет для ИЗНАЧАЛЬНЫХ цифр */
 .cell.given .cell-value-container {
     color: #333; /* Стандартный темно-серый */
 }
 
-/* 2. Подсветка строки/столбца */
+/* 2. Подсветка строки/столбца/блока для выбранной ячейки */
 .cell.highlighted {
-    background-color: #e8f4ff;
+    background-color: #e8f4ff; /* Светло-голубой фон */
 }
 
-/* 3. Неправильно введенная цифра */
+/* 3. Неправильно введенная цифра (после проверки) */
 .cell.incorrect .cell-value-container {
-    color: red !important; /* Красный цвет цифры, важнее стандартного */
+    color: red !important; /* Красный цвет цифры, важнее стандартного синего */
 }
 .cell.incorrect {
-     background-color: #ffdddd; /* Розовый фон ошибки */
+     background-color: #ffdddd; /* Светло-розовый фон ошибки */
 }
 
-/* 4. Выбранная пользователем ячейка */
+/* 4. Выбранная пользователем ячейка (если не 'given') */
 .cell.selected {
-    background-color: #a7d8ff;
+    background-color: #a7d8ff; /* Более насыщенный голубой фон */
 }
 
 /* ===== Стили таймера ===== */
-#timer-container { margin-bottom: 10px; width: clamp(270px, 90vw, 500px); text-align: right; }
-#timer { font-size: 16px; font-weight: bold; color: #555; padding: 5px 10px; background-color: #e9e9e9; border-radius: 4px; display: inline-block; }
+#timer-container {
+    margin-bottom: 10px;
+    width: clamp(270px, 90vw, 500px); /* Ширина как у доски */
+    text-align: right; /* Прижимаем таймер к правому краю */
+}
+#timer {
+    font-size: 16px;
+    font-weight: bold;
+    color: #555;
+    padding: 5px 10px;
+    background-color: #e9e9e9; /* Светло-серый фон */
+    border-radius: 4px;
+    display: inline-block; /* Чтобы фон был только вокруг текста */
+}
 
-/* ===== Стили элементов управления ===== */
-#controls { display: flex; gap: 10px; margin-bottom: 5px; }
-#controls button { padding: 10px 15px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background-color: #007bff; color: white; transition: background-color 0.2s; }
-#controls button:hover { background-color: #0056b3; }
-#controls button:active { background-color: #004085; }
+/* ===== Стили элементов управления (кнопки Проверить/Новая игра) ===== */
+#controls {
+    display: flex;
+    gap: 10px; /* Отступ между кнопками */
+    margin-bottom: 5px;
+}
+#controls button {
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff; /* Синий цвет Bootstrap */
+    color: white;
+    transition: background-color 0.2s;
+}
+#controls button:hover {
+    background-color: #0056b3; /* Темнее при наведении */
+}
+#controls button:active {
+    background-color: #004085; /* Еще темнее при нажатии */
+}
 
-/* ===== Стили для сообщения о статусе ===== */
-#status-message { margin-top: 2px; font-size: 16px; min-height: 18px; font-weight: bold; text-align: center; }
+/* ===== Стили для сообщения о статусе (ошибки, успех) ===== */
+#status-message {
+    margin-top: 2px;
+    font-size: 16px;
+    min-height: 18px; /* Резервируем место, чтобы блок не прыгал */
+    font-weight: bold;
+    text-align: center;
+}
 .correct { color: green; }
 .incorrect-msg { color: red; }
 
 /* ===== Стили для цифровой панели ===== */
-#numpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 5px; margin-top: 5px; width: clamp(200px, 70vw, 280px); }
-#numpad button { padding: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background-color: #fff; transition: background-color 0.2s, box-shadow 0.2s; -webkit-tap-highlight-color: transparent; }
-#numpad button:hover { background-color: #eee; }
-#numpad button:active { background-color: #ddd; }
-#note-toggle-button { grid-column: 1 / 2; grid-row: 4 / 5; font-size: 20px; }
-#erase-button { grid-column: 2 / 4; grid-row: 4 / 5; background-color: #ffc107; }
-#erase-button:hover { background-color: #e0a800; }
-#note-toggle-button.active { background-color: #a7d8ff; box-shadow: inset 0 0 4px rgba(0,0,0,0.3); }
+#numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 колонки */
+    grid-template-rows: repeat(4, auto); /* 4 ряда (3 для цифр, 1 для доп. кнопок) */
+    gap: 5px; /* Отступы между кнопками */
+    margin-top: 5px;
+    width: clamp(200px, 70vw, 280px); /* Ширина панели, меньше доски */
+}
+#numpad button {
+    padding: 10px 0; /* Вертикальный паддинг */
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent; /* Убрать синюю вспышку при тапе на мобильных */
+}
+#numpad button:hover {
+    background-color: #eee;
+}
+#numpad button:active {
+    background-color: #ddd;
+}
+/* Размещение кнопок заметок и стирания в последнем ряду */
+#note-toggle-button {
+    grid-column: 1 / 2; /* Занимает первую колонку */
+    grid-row: 4 / 5;    /* В четвертом ряду */
+    font-size: 20px; /* Иконка чуть крупнее */
+}
+#erase-button {
+    grid-column: 2 / 4; /* Занимает вторую и третью колонку */
+    grid-row: 4 / 5;    /* В четвертом ряду */
+    background-color: #ffc107; /* Желтый цвет (Bootstrap warning) */
+}
+#erase-button:hover {
+    background-color: #e0a800;
+}
+/* Стиль для активного режима заметок */
+#note-toggle-button.active {
+    background-color: #a7d8ff; /* Голубой фон, как у выбранной ячейки */
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.3); /* Эффект "вдавленной" кнопки */
+}
 
 /* ===== Стили для модального окна сложности ===== */
-#modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 100; display: none; opacity: 0; transition: opacity 0.3s ease-in-out; cursor: pointer; }
-#modal-overlay.visible { display: block; opacity: 1; }
-#difficulty-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); background-color: white; padding: 25px 35px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); z-index: 101; display: none; text-align: center; opacity: 0; transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
-#difficulty-modal.visible { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-#difficulty-modal h2 { margin-top: 0; margin-bottom: 20px; color: #333; }
-#difficulty-modal .modal-buttons { display: flex; flex-direction: column; gap: 10px; }
-#difficulty-modal .modal-buttons button { padding: 12px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background-color: #f8f9fa; color: #333; transition: background-color 0.2s, border-color 0.2s; }
-#difficulty-modal .modal-buttons button:hover { background-color: #e9ecef; border-color: #bbb; }
-#difficulty-modal .modal-buttons button.difficulty-button { background-color: #e7f3ff; border-color: #b8d6f3; }
-#difficulty-modal .modal-buttons button.difficulty-button:hover { background-color: #cfe4fa; border-color: #a1c3e6; }
-#difficulty-modal .modal-buttons #cancel-difficulty-button { margin-top: 10px; background-color: #f1f1f1; }
-#difficulty-modal .modal-buttons #cancel-difficulty-button:hover { background-color: #e1e1e1; }
+#modal-overlay {
+    position: fixed; /* Фиксированное позиционирование относительно viewport */
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Полупрозрачный черный фон */
+    backdrop-filter: blur(3px); /* Эффект размытия фона (не везде поддерживается) */
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 100; /* Выше остального контента */
+    display: none; /* По умолчанию скрыт */
+    opacity: 0; /* Начальная прозрачность для анимации */
+    transition: opacity 0.3s ease-in-out; /* Плавное появление */
+    cursor: pointer; /* Намекает, что по клику можно закрыть */
+}
+#modal-overlay.visible { /* Класс для показа оверлея */
+    display: block;
+    opacity: 1;
+}
+#difficulty-modal {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.95); /* Центрирование и начальное уменьшение */
+    background-color: white;
+    padding: 25px 35px;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); /* Тень */
+    z-index: 101; /* Выше оверлея */
+    display: none; /* По умолчанию скрыто */
+    text-align: center;
+    opacity: 0; /* Начальная прозрачность */
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; /* Плавное появление и масштабирование */
+}
+#difficulty-modal.visible { /* Класс для показа модального окна */
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1); /* Возврат к нормальному размеру */
+}
+#difficulty-modal h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333;
+}
+#difficulty-modal .modal-buttons {
+    display: flex;
+    flex-direction: column; /* Кнопки друг под другом */
+    gap: 10px;
+}
+#difficulty-modal .modal-buttons button {
+    padding: 12px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f8f9fa; /* Очень светлый фон */
+    color: #333;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+#difficulty-modal .modal-buttons button:hover {
+    background-color: #e9ecef;
+    border-color: #bbb;
+}
+/* Выделяем кнопки сложности */
+#difficulty-modal .modal-buttons button.difficulty-button {
+    background-color: #e7f3ff; /* Светло-голубой */
+    border-color: #b8d6f3;
+}
+#difficulty-modal .modal-buttons button.difficulty-button:hover {
+    background-color: #cfe4fa;
+    border-color: #a1c3e6;
+}
+/* Отдельный стиль для кнопки Отмена */
+#difficulty-modal .modal-buttons #cancel-difficulty-button {
+    margin-top: 10px; /* Небольшой отступ сверху */
+    background-color: #f1f1f1;
+}
+#difficulty-modal .modal-buttons #cancel-difficulty-button:hover {
+    background-color: #e1e1e1;
+}
