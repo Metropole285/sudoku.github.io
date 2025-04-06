@@ -89,8 +89,7 @@ h1 {
 }
 .note-digit {
     display: flex; justify-content: center; align-items: center;
-    /* === ИЗМЕНЕНИЕ ЗДЕСЬ === */
-    font-size: clamp(10px, 2.3vw, 13px); /* Заметки: мин 10px, предп. 2.3% viewport, макс 13px (было 8px, 2vw, 10px) */
+    font-size: clamp(10px, 2.3vw, 13px); /* Заметки: мин 10px, предп. 2.3% viewport, макс 13px */
     line-height: 1; color: #555; text-align: center;
 }
 
@@ -140,11 +139,13 @@ h1 {
     display: inline-block; /* Чтобы фон был только вокруг текста */
 }
 
-/* ===== Стили элементов управления (кнопки Проверить/Новая игра) ===== */
+/* ===== Стили элементов управления (кнопки Проверить/Новая игра/Подсказка) ===== */
 #controls {
     display: flex;
     gap: 10px; /* Отступ между кнопками */
     margin-bottom: 5px;
+    flex-wrap: wrap; /* Позволяем кнопкам переноситься на новую строку на узких экранах */
+    justify-content: center; /* Центрируем кнопки, если они перенеслись */
 }
 #controls button {
     padding: 10px 15px;
@@ -154,7 +155,8 @@ h1 {
     border-radius: 5px;
     background-color: #007bff; /* Синий цвет Bootstrap */
     color: white;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, opacity 0.2s;
+    white-space: nowrap; /* Предотвращаем перенос текста внутри кнопки */
 }
 #controls button:hover {
     background-color: #0056b3; /* Темнее при наведении */
@@ -162,6 +164,24 @@ h1 {
 #controls button:active {
     background-color: #004085; /* Еще темнее при нажатии */
 }
+/* === СТИЛИ ДЛЯ КНОПКИ ПОДСКАЗКИ === */
+#hint-button {
+    background-color: #28a745; /* Зеленый цвет (Bootstrap success) */
+}
+#hint-button:hover {
+    background-color: #218838;
+}
+#hint-button:active {
+    background-color: #1e7e34;
+}
+/* Стиль для отключенной кнопки подсказки */
+#hint-button:disabled {
+    background-color: #6c757d; /* Серый цвет (Bootstrap secondary) */
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+/* ================================== */
+
 
 /* ===== Стили для сообщения о статусе (ошибки, успех) ===== */
 #status-message {
