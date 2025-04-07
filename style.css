@@ -140,24 +140,34 @@ h1 {
     border: 1px solid #ccc;
     border-radius: 5px;
     background-color: #fff;
-    /* ДОБАВЛЕНО: color и border-color для плавного перехода */
+    /* Обновленный transition для плавного перехода */
     transition: background-color 0.2s, box-shadow 0.2s, color 0.2s, border-color 0.2s;
     -webkit-tap-highlight-color: transparent;
 }
+/* Общее правило для hover на всех кнопках numpad */
 #numpad button:hover { background-color: #eee; }
 #numpad button:active { background-color: #ddd; }
 #note-toggle-button { grid-column: 1 / 2; grid-row: 4 / 5; font-size: 20px; }
 #erase-button { grid-column: 2 / 4; grid-row: 4 / 5; background-color: #ffc107; color: #212529; }
 #erase-button:hover { background-color: #e0a800; }
 
-/* === ИЗМЕНЕНО: Стили для активной кнопки заметок (Вариант 2) === */
+/* Стили для активной кнопки заметок */
 #note-toggle-button.active {
     background-color: #28a745; /* Зеленый цвет, как у кнопки подсказки */
     color: white;              /* Иконка белая */
     border-color: #1e7e34;     /* Темно-зеленая рамка */
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); /* Усиленная тень */
 }
-/* ============================================================= */
+
+/* === ДОБАВЛЕНО: Стили для НАВЕДЕНИЯ на АКТИВНУЮ кнопку заметок === */
+#note-toggle-button.active:hover {
+    background-color: #28a745; /* ОСТАВЛЯЕМ зеленый фон */
+    color: white;              /* ОСТАВЛЯЕМ белую иконку */
+    border-color: #155d27;     /* Делаем рамку чуть темнее при наведении */
+    /* border-width: 2px; */      /* Опционально: можно сделать рамку толще */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); /* Сохраняем вдавленную тень */
+}
+/* ================================================================= */
 
 /* ===== Стили для модального окна сложности ===== */
 #modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 100; display: none; opacity: 0; transition: opacity 0.3s ease-in-out; cursor: pointer; }
