@@ -116,7 +116,45 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { console.warn("Hint button?"); }
     }
     // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+    function showDifficultyModal() {
+    if (difficultyModal && modalOverlay) {
+        console.log("Showing difficulty modal...");
+        modalOverlay.classList.add('visible');
+        difficultyModal.classList.add('visible');
+    } else {
+        console.error("Модальное окно или оверлей не найдены!");
+    }
+}
 
+function hideDifficultyModal() {
+    if (difficultyModal && modalOverlay) {
+        console.log("Hiding difficulty modal...");
+        modalOverlay.classList.remove('visible');
+        difficultyModal.classList.remove('visible');
+    }
+     // Важно: После скрытия окна, нужно проверить, не решена ли игра,
+     // и если нет - запустить таймер обратно (если он был остановлен).
+     // Код ниже частично дублирует логику из обработчиков кликов на оверлее/кнопке отмены.
+     // Можно вынести в отдельную функцию `resumeTimerIfNeeded()`.
+     if (currentPuzzle && userGrid.length > 0) { // Проверяем, что игра загружена
+        let isSolved = !userGrid.flat().some((cell, i) => {
+             // Условие немного упрощено: проверяем только незаполненные ячейки, которые не были даны изначально
+             const isGiven = currentPuzzle && (currentPuzzle[i] !== '.' && currentPuzzle[i] !== '0');
+             return !isGiven && cell.value === 0;
+         });
+
+         if (!isSolved) {
+            // Если игра была в процессе и не решена,
+            // проверяем, был ли таймер остановлен именно кнопкой "Новая игра"
+            // (или кликом по оверлею/отмене). Если да, запускаем его обратно.
+            // Простой способ - просто вызвать startTimer(), он не запустит дубликат.
+            console.log("Resuming timer after modal close (if game not solved).");
+            startTimer();
+         } else {
+            console.log("Game is solved, timer remains stopped.");
+         }
+     }
+}
     function highlightRelatedCells(row, col) { boardElement.querySelectorAll('.cell.highlighted').forEach(cell => cell.classList.remove('highlighted')); boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => cell.classList.add('highlighted')); }
 
     // --- Логика подсказки (внутренняя) ---
