@@ -1,35 +1,63 @@
 /* ===== Базовые стили страницы ===== */
+/* ДОБАВЛЕНО: Гарантируем, что html тоже занимает всю высоту */
+html {
+    height: 100%;
+    font-size: 16px; /* Базовый размер шрифта */
+}
+
 body {
     font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
+    display: flex; /* ИЗМЕНЕНО: Используем Flexbox */
+    flex-direction: column; /* Вертикальное направление */
     align-items: center;
     margin: 0;
-    padding: 10px;
+    padding: 5px 10px; /* ИЗМЕНЕНО: Уменьшаем вертикальный паддинг */
     background-color: #f0f0f0;
     touch-action: manipulation;
-    min-height: 100vh;
+    min-height: 100vh; /* Занимаем минимум всю высоту экрана */
     box-sizing: border-box;
+    /* ДОБАВЛЕНО: Предотвращаем нежелательное сжатие элементов */
+    /* overflow-y: auto; /* Можно добавить, если содержимое все же не влезет на очень маленьких экранах */
 }
 
 h1 {
-    margin-top: 0;
-    margin-bottom: 15px;
+    margin-top: 5px; /* ИЗМЕНЕНО: Уменьшен отступ */
+    margin-bottom: 8px; /* ИЗМЕНЕНО: Уменьшен отступ */
     color: #333;
+    font-size: 1.6em; /* Можно немного уменьшить заголовок */
+    flex-shrink: 0; /* ДОБАВЛЕНО: Заголовок не сжимается */
+}
+
+/* ===== Стили таймера ===== */
+#timer-container {
+    margin-bottom: 8px; /* ИЗМЕНЕНО: Уменьшен отступ */
+    width: clamp(270px, 90vw, 500px); /* Ширина как у доски */
+    max-width: 100%; /* Гарантия, что не вылезет */
+    text-align: right;
+    flex-shrink: 0; /* ДОБАВЛЕНО: Таймер не сжимается */
+}
+#timer {
+    font-size: 1em; /* Используем em для масштабируемости */
+    font-weight: bold; color: #555; padding: 5px 10px; background-color: #e9e9e9; border-radius: 4px; display: inline-block;
 }
 
 /* ===== Стили доски Судоку ===== */
 #sudoku-board {
     display: grid;
-    grid-template-columns: repeat(9, minmax(30px, 10vw));
-    grid-template-rows: repeat(9, minmax(30px, 10vw));
-    width: clamp(270px, 90vw, 500px);
-    height: clamp(270px, 90vw, 500px);
+    grid-template-columns: repeat(9, minmax(28px, 1fr)); /* ИЗМЕНЕНО: Используем fr и minmax поменьше */
+    grid-template-rows: repeat(9, minmax(28px, 1fr));
+    /* ИЗМЕНЕНО: Ключевое изменение - используем vmin (меньшее из vw/vh) для квадратной доски */
+    /* width и height будут равны, но ограничены шириной/высотой экрана */
+    width: clamp(260px, 85vmin, 480px);
+    height: clamp(260px, 85vmin, 480px);
+    max-width: 95vw; /* Дополнительное ограничение по ширине */
+    max-height: 65vh; /* ИЗМЕНЕНО: Ограничиваем максимальную высоту доски */
     border: 3px solid black;
-    margin-bottom: 15px;
+    margin-bottom: 10px; /* ИЗМЕНЕНО: Уменьшен отступ */
     background-color: white;
     overflow: hidden;
     transition: filter 0.3s ease-in-out;
+    flex-shrink: 0; /* ДОБАВЛЕНО: Доска не должна сжиматься */
 }
 
 /* --- Стили ячеек и их границ --- */
@@ -57,9 +85,11 @@ h1 {
 .cell-value-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; justify-content: center; align-items: center;
-    font-size: clamp(16px, 5vw, 24px); line-height: 1;
+    /* ИЗМЕНЕНО: Адаптивный размер шрифта */
+    font-size: clamp(1em, 4vmin, 1.5em);
+    line-height: 1;
     font-weight: bold;
-    color: #026bff; /* Цвет введенных цифр */
+    color: #026bff;
 }
 .cell-notes-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -68,37 +98,35 @@ h1 {
 }
 .note-digit {
     display: flex; justify-content: center; align-items: center;
-    font-size: clamp(10px, 2.3vw, 13px);
+    /* ИЗМЕНЕНО: Адаптивный размер шрифта */
+    font-size: clamp(0.6em, 2vmin, 0.8em);
     line-height: 1; color: #555; text-align: center;
 }
 
 /* --- Стили для состояний ячеек --- */
 .cell.given { background-color: #ffffff; cursor: default; }
-.cell.given .cell-value-container { color: #333; /* Стандартный темный цвет начальных цифр */ }
-.cell.highlighted { background-color: #e8f4ff; /* Подсветка строки/столбца */ }
+.cell.given .cell-value-container { color: #333; }
+.cell.highlighted { background-color: #e8f4ff; }
 .cell.incorrect .cell-value-container { color: red !important; }
 .cell.incorrect { background-color: #ffdddd; }
-.cell.selected { background-color: #a7d8ff; /* Выбранная ячейка */ }
-
-/* ===== Стили таймера ===== */
-#timer-container { margin-bottom: 10px; width: clamp(270px, 90vw, 500px); text-align: right; }
-#timer { font-size: 16px; font-weight: bold; color: #555; padding: 5px 10px; background-color: #e9e9e9; border-radius: 4px; display: inline-block; }
+.cell.selected { background-color: #a7d8ff; }
 
 /* ===== Стили элементов управления ===== */
 #controls {
     display: flex;
-    gap: 10px;
-    margin-bottom: 5px;
-    flex-wrap: wrap; /* Разрешаем перенос кнопок */
-    justify-content: center; /* Центрируем кнопки */
+    gap: 8px; /* ИЗМЕНЕНО: Уменьшен разрыв */
+    margin-bottom: 8px; /* ИЗМЕНЕНО: Уменьшен отступ */
+    flex-wrap: wrap;
+    justify-content: center;
+    flex-shrink: 0; /* ДОБАВЛЕНО: Кнопки не сжимаются */
 }
 #controls button {
-    padding: 10px 15px;
-    font-size: 16px;
+    padding: 8px 12px; /* ИЗМЕНЕНО: Уменьшен паддинг */
+    font-size: 0.9em; /* ИЗМЕНЕНО: Уменьшен шрифт */
     cursor: pointer;
     border: none;
     border-radius: 5px;
-    background-color: #007bff; /* Синий по умолчанию */
+    background-color: #007bff;
     color: white;
     transition: background-color 0.2s, opacity 0.2s;
     white-space: nowrap;
@@ -107,69 +135,79 @@ h1 {
 #controls button:active { background-color: #004085; }
 
 /* --- Стили конкретных кнопок управления --- */
-#hint-button { background-color: #28a745; /* Зеленый */ }
+#hint-button { background-color: #28a745; }
 #hint-button:hover { background-color: #218838; }
 #hint-button:active { background-color: #1e7e34; }
 #hint-button:disabled,
-#undo-button:disabled { /* Общий стиль для отключенных кнопок */
-    background-color: #6c757d; /* Серый */
+#undo-button:disabled {
+    background-color: #6c757d;
     opacity: 0.65;
     cursor: not-allowed;
 }
-/* === СТИЛИ ДЛЯ КНОПКИ ОТМЕНЫ === */
 #undo-button {
-    background-color: #ffc107; /* Желтый (как Стереть) */
-    color: #212529; /* Темный текст для лучшей читаемости на желтом */
+    background-color: #ffc107;
+    color: #212529;
 }
 #undo-button:hover { background-color: #e0a800; }
 #undo-button:active { background-color: #c69500; }
-/* ================================ */
 
 /* ===== Стили для сообщения о статусе ===== */
-#status-message { margin-top: 2px; font-size: 16px; min-height: 18px; font-weight: bold; text-align: center; }
+#status-message {
+    margin-top: 4px; /* ИЗМЕНЕНО: Уменьшен отступ */
+    margin-bottom: 8px; /* ИЗМЕНЕНО: Уменьшен отступ */
+    font-size: 0.9em; /* ИЗМЕНЕНО: Уменьшен шрифт */
+    min-height: 1.2em; /* ИЗМЕНЕНО: Уменьшена мин. высота */
+    font-weight: bold; text-align: center;
+    flex-shrink: 0; /* ДОБАВЛЕНО: Сообщение не сжимается */
+}
 .correct { color: green; }
 .incorrect-msg { color: red; }
 
 /* ===== Стили для цифровой панели ===== */
-#numpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 5px; margin-top: 5px; width: clamp(200px, 70vw, 280px); }
+#numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, auto);
+    gap: 4px; /* ИЗМЕНЕНО: Уменьшен разрыв */
+    margin-top: 0; /* ИЗМЕНЕНО: Убран верхний отступ */
+    width: clamp(220px, 80vw, 280px); /* ИЗМЕНЕНО: Скорректирована ширина */
+    max-width: 95vw; /* Ограничение по ширине */
+    flex-shrink: 0; /* ДОБАВЛЕНО: Numpad не сжимается */
+}
 #numpad button {
-    padding: 10px 0;
-    font-size: 18px;
+    padding: 8px 0; /* ИЗМЕНЕНО: Уменьшен паддинг */
+    font-size: 1.1em; /* Можно немного увеличить для читаемости цифр */
     font-weight: bold;
     cursor: pointer;
     border: 1px solid #ccc;
     border-radius: 5px;
     background-color: #fff;
-    /* Обновленный transition для плавного перехода */
     transition: background-color 0.2s, box-shadow 0.2s, color 0.2s, border-color 0.2s;
     -webkit-tap-highlight-color: transparent;
 }
-/* Общее правило для hover на всех кнопках numpad */
 #numpad button:hover { background-color: #eee; }
 #numpad button:active { background-color: #ddd; }
-#note-toggle-button { grid-column: 1 / 2; grid-row: 4 / 5; font-size: 20px; }
+#note-toggle-button { grid-column: 1 / 2; grid-row: 4 / 5; font-size: 1.3em; /* Размер иконки */ }
 #erase-button { grid-column: 2 / 4; grid-row: 4 / 5; background-color: #ffc107; color: #212529; }
 #erase-button:hover { background-color: #e0a800; }
 
 /* Стили для активной кнопки заметок */
 #note-toggle-button.active {
-    background-color: #28a745; /* Зеленый цвет, как у кнопки подсказки */
-    color: white;              /* Иконка белая */
-    border-color: #1e7e34;     /* Темно-зеленая рамка */
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); /* Усиленная тень */
+    background-color: #28a745;
+    color: white;
+    border-color: #1e7e34;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
-
-/* === ДОБАВЛЕНО: Стили для НАВЕДЕНИЯ на АКТИВНУЮ кнопку заметок === */
+/* Стили для НАВЕДЕНИЯ на АКТИВНУЮ кнопку заметок */
 #note-toggle-button.active:hover {
-    background-color: #28a745; /* ОСТАВЛЯЕМ зеленый фон */
-    color: white;              /* ОСТАВЛЯЕМ белую иконку */
-    border-color: #155d27;     /* Делаем рамку чуть темнее при наведении */
-    /* border-width: 2px; */      /* Опционально: можно сделать рамку толще */
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); /* Сохраняем вдавленную тень */
+    background-color: #28a745;
+    color: white;
+    border-color: #155d27;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
-/* ================================================================= */
 
 /* ===== Стили для модального окна сложности ===== */
+/* Стили модального окна остались без изменений, т.к. оно появляется поверх всего */
 #modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 100; display: none; opacity: 0; transition: opacity 0.3s ease-in-out; cursor: pointer; }
 #modal-overlay.visible { display: block; opacity: 1; }
 #difficulty-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); background-color: white; padding: 25px 35px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); z-index: 101; display: none; text-align: center; opacity: 0; transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
