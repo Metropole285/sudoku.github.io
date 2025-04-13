@@ -1,304 +1,438 @@
-// Убедитесь, что файл sudoku.js (или sudoku.min.js) подключен в index.html ПЕРЕД этим скриптом.
+/* ===== Базовые стили и CSS Переменные ===== */
+:root {
+    /* --- Светлая тема (по умолчанию) --- */
+    --bg-primary: #f0f0f0;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e9e9e9; /* Фон таймера */
+    --bg-numpad-button: #ffffff;
+    --bg-numpad-button-hover: #eee;
+    --bg-numpad-button-active: #ddd;
+    --bg-large-button: #007bff;
+    --bg-large-button-hover: #0056b3;
+    --bg-large-button-disabled: #a0cfff;
+    --bg-difficulty-button: #e7f3ff;
+    --bg-difficulty-button-hover: #cfe4fa;
+    --bg-options-container: rgba(255, 255, 255, 0.8);
+    --bg-theme-switch-track: #ccc;
+    --bg-theme-switch-knob: white;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // --- Получение ссылок на ЭКРАНЫ и основные кнопки ---
-    const initialScreen = document.getElementById('initial-screen');
-    const newGameOptionsScreen = document.getElementById('new-game-options');
-    const gameContainer = document.getElementById('game-container');
-    const startNewGameButton = document.getElementById('start-new-game-button');
-    const continueGameButton = document.getElementById('continue-game-button');
-    const difficultyButtonsContainer = newGameOptionsScreen.querySelector('.difficulty-selection');
-    const themeToggleCheckbox = document.getElementById('theme-toggle-checkbox');
-    const backToInitialButton = document.getElementById('back-to-initial-button'); // << НОВОЕ
-    const exitGameButton = document.getElementById('exit-game-button'); // << НОВОЕ
+    --text-primary: #333;
+    --text-secondary: #555;
+    --text-accent: #026bff; /* Введенные пользователем цифры */
+    --text-given: #333;    /* Предустановленные цифры */
+    --text-note: #555;
+    --text-inverted: #ffffff;
+    --text-danger: red;
+    --text-success: green;
+    --text-warning-fg: #212529; /* Текст на желтых кнопках */
+    --text-disabled: #777;
 
-    // --- Получение ссылок на элементы ИГРОВОГО ЭКРАНА ---
-    const boardElement = document.getElementById('sudoku-board');
-    const checkButton = document.getElementById('check-button');
-    // const newGameButton = document.getElementById('new-game-button'); // Удалена из игрового экрана
-    const hintButton = document.getElementById('hint-button');
-    const undoButton = document.getElementById('undo-button');
-    const statusMessageElement = document.getElementById('status-message');
-    const numpad = document.getElementById('numpad');
-    const noteToggleButton = document.getElementById('note-toggle-button');
-    const timerElement = document.getElementById('timer');
+    --border-primary: #ccc;
+    --border-secondary: black; /* Граница доски, толстые линии */
+    --border-difficulty-button: #b8d6f3;
+    --border-difficulty-button-hover: #a1c3e6;
 
-    // --- Ключи для localStorage ---
-    const SAVE_KEY = 'sudokuGameState';
-    const THEME_KEY = 'sudokuThemePreference';
+    --highlight-weak: #e8f4ff; /* Подсветка строки/колонки */
+    --highlight-strong: #a7d8ff; /* Выбранная ячейка */
+    --highlight-error-bg: #ffdddd; /* Фон ошибочной ячейки */
+    --highlight-error-text: var(--text-danger);
+    --highlight-hint-flash: #fffacd; /* Вспышка подсказки */
 
-    // --- Переменные состояния игры ---
-    let currentPuzzle = null; let currentSolution = null; let userGrid = [];
-    let selectedCell = null; let selectedRow = -1; let selectedCol = -1;
-    let isNoteMode = false; let timerInterval = null; let secondsElapsed = 0;
-    let currentDifficulty = 'medium'; // Сложность по умолчанию
-    let historyStack = [];
+    --button-primary-bg: #007bff;
+    --button-primary-hover: #0056b3;
+    --button-primary-active: #004085;
+    --button-success-bg: #28a745;
+    --button-success-hover: #218838;
+    --button-success-active: #1e7e34;
+    --button-warning-bg: #ffc107;
+    --button-warning-hover: #e0a800;
+    --button-warning-active: #c69500;
+    --button-disabled-bg: #6c757d;
+    --button-disabled-opacity: 0.65;
+    --button-note-active-bg: var(--button-success-bg);
+    --button-note-active-border: var(--button-success-active);
+    --button-note-active-shadow: rgba(0, 0, 0, 0.3);
+    --button-exit-bg: #dc3545; /* Цвет кнопки Меню/Выход */
+    --button-exit-hover: #c82333;
+    --button-back-bg: #6c757d; /* Цвет кнопки Назад */
+    --button-back-hover: #5a6268;
 
-    // --- Переменные для подсказок ---
-    const MAX_HINTS = 3;
-    const HINTS_REWARD = 1; // 1 подсказка за рекламу
-    let hintsRemaining = MAX_HINTS;
+    --shadow-theme-toggle: rgba(0, 0, 0, 0.2);
 
-    // === ПЛЕЙСХОЛДЕРЫ ДЛЯ SDK РЕКЛАМЫ (Без изменений) ===
-    let isAdReady = false; let isShowingAd = false;
-    function initializeAds() { console.log("ADS Init..."); setTimeout(() => { preloadRewardedAd(); }, 2000); }
-    function preloadRewardedAd() { if (isAdReady || isShowingAd) return; console.log("ADS Load..."); isAdReady = false; setTimeout(() => { if (!isShowingAd) { isAdReady = true; console.log("ADS Ready."); } else { console.log("ADS Load aborted (showing)."); } }, 3000 + Math.random() * 2000); }
-    function showRewardedAd(callbacks) { if (!isAdReady || isShowingAd) { console.log("ADS Not ready/Showing."); if (callbacks.onError) callbacks.onError("Реклама не готова."); preloadRewardedAd(); return; } console.log("ADS Show..."); isShowingAd = true; isAdReady = false; statusMessageElement.textContent = "Показ рекламы..."; statusMessageElement.className = ''; document.body.style.pointerEvents = 'none'; setTimeout(() => { const success = Math.random() > 0.2; document.body.style.pointerEvents = 'auto'; statusMessageElement.textContent = ""; isShowingAd = false; console.log("ADS Show End."); if (success) { console.log("ADS Success!"); if (callbacks.onSuccess) callbacks.onSuccess(); } else { console.log("ADS Error/Skip."); if (callbacks.onError) callbacks.onError("Реклама не загружена / пропущена."); } preloadRewardedAd(); }, 5000); }
-    // === КОНЕЦ ПЛЕЙСХОЛДЕРОВ ===
+    --transition-duration: 0.3s;
+}
 
-    // --- Функции Управления Экранами --- // << НОВОЕ
-    function showScreen(screenToShow) {
-        [initialScreen, newGameOptionsScreen, gameContainer].forEach(screen => {
-            screen.classList.remove('visible');
-        });
-        if (screenToShow) {
-            screenToShow.classList.add('visible');
-            console.log(`Screen shown: #${screenToShow.id}`);
-        } else {
-            console.error("showScreen: screenToShow is null or undefined");
-        }
-    }
+body.dark-theme {
+    /* --- Темная тема --- */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #2c2c2c;
+    --bg-tertiary: #3f3f3f;
+    --bg-numpad-button: #3f3f3f;
+    --bg-numpad-button-hover: #505050;
+    --bg-numpad-button-active: #616161;
+    --bg-large-button: #2386fd;
+    --bg-large-button-hover: #58a6ff;
+    --bg-large-button-disabled: #1a5a9e;
+    --bg-difficulty-button: #334f6e;
+    --bg-difficulty-button-hover: #446a94;
+    --bg-options-container: rgba(44, 44, 44, 0.85);
+    --bg-theme-switch-track: #555;
+    --bg-theme-switch-knob: #ccc;
 
-    // --- Функции Темы ---
-    function applyTheme(theme) {
-        const isDark = theme === 'dark';
-        document.body.classList.toggle('dark-theme', isDark);
-        if (themeToggleCheckbox) {
-            themeToggleCheckbox.checked = isDark; // Синхронизируем чекбокс
-        }
-        console.log(`Theme applied: ${theme}`);
-        // Оповещение Telegram (опционально)
-        if (window.Telegram?.WebApp) {
-            try {
-                 // Пример: используем цвета из CSS переменных (нужно получить их реальные значения)
-                 const bodyStyle = getComputedStyle(document.body);
-                 const headerColor = bodyStyle.getPropertyValue('--bg-primary').trim();
-                 Telegram.WebApp.setHeaderColor(headerColor);
-                 // Telegram.WebApp.setBackgroundColor(headerColor);
-                 console.log("Informed Telegram about theme change.");
-            } catch (e) { console.error("Error informing Telegram theme:", e); }
-        }
-    }
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-accent: #58a6ff; /* Светло-голубой */
+    --text-given: #b0b0b0; /* Менее яркие */
+    --text-note: #999;
+    --text-inverted: #121212; /* Для светлых кнопок */
+    --text-danger: #ff9999; /* Светло-красный */
+    --text-success: #99ff99; /* Светло-зеленый */
+    --text-warning-fg: #212529; /* Оставляем темный для читаемости на желтом */
+    --text-disabled: #888;
 
-    function loadThemePreference() {
-        const savedTheme = localStorage.getItem(THEME_KEY);
-        const currentTheme = savedTheme || 'light'; // Светлая по умолчанию
-        applyTheme(currentTheme);
-    }
+    --border-primary: #555;
+    --border-secondary: #bbb; /* Светлая граница доски */
+    --border-difficulty-button: #58a6ff;
+    --border-difficulty-button-hover: #7bbaff;
 
-    function handleThemeToggle() {
-        const newTheme = themeToggleCheckbox.checked ? 'dark' : 'light';
-        applyTheme(newTheme);
-        localStorage.setItem(THEME_KEY, newTheme);
-        console.log(`Theme saved: ${newTheme}`);
-    }
+    --highlight-weak: #334f6e; /* Темно-синий */
+    --highlight-strong: #0058a3; /* Еще темнее синий */
+    --highlight-error-bg: #6e3333; /* Темно-красный фон */
+    --highlight-error-text: var(--text-danger);
+    --highlight-hint-flash: #6a6836; /* Темно-желтый */
 
-    // --- Инициализация ИГРЫ (Вызывается после выбора сложности или "Продолжить") ---
-    function initGame(difficulty, restoreState = null) {
-        console.log(`InitGame called: difficulty=${difficulty}, restore=${!!restoreState}`);
-        currentDifficulty = difficulty;
-        stopTimer(); // Остановка предыдущего таймера, если был
-        historyStack = [];
-        updateUndoButtonState();
-        isNoteMode = false; // Сброс режима заметок при старте
-        updateNoteToggleButtonState();
-        clearSelection();
-        clearErrors();
-        statusMessageElement.textContent = ''; statusMessageElement.className = '';
+    --button-primary-bg: #2386fd;
+    --button-primary-hover: #58a6ff;
+    --button-primary-active: #1e72d3;
+    --button-success-bg: #34ae5a;
+    --button-success-hover: #4ddb7a;
+    --button-success-active: #2b914c;
+    --button-warning-bg: #ffc107; /* Желтый обычно ок */
+    --button-warning-hover: #e0a800;
+    --button-warning-active: #c69500;
+    --button-disabled-bg: #5a5a5a;
+    --button-disabled-opacity: 0.7;
+    --button-note-active-bg: var(--button-success-bg);
+    --button-note-active-border: var(--button-success-active);
+    --button-note-active-shadow: rgba(0, 0, 0, 0.5);
+    --button-exit-bg: #ef5350;
+    --button-exit-hover: #e53935;
+    --button-back-bg: #787878;
+    --button-back-hover: #8a8a8a;
 
-        if (restoreState) {
-            console.log("Attempting to restore game state...");
-            try {
-                currentPuzzle = restoreState.puzzle;
-                currentSolution = restoreState.solution;
-                // Восстановление userGrid с Set'ами для заметок
-                userGrid = restoreState.grid.map(row =>
-                    row.map(cell => ({
-                        value: cell.value,
-                        notes: new Set(cell.notesArray || []) // Убедимся, что notesArray существует
-                    }))
-                );
-                secondsElapsed = restoreState.time || 0; // Время
-                hintsRemaining = restoreState.hints !== undefined ? restoreState.hints : MAX_HINTS; // Подсказки
+    --shadow-theme-toggle: rgba(200, 200, 200, 0.15);
+}
 
-                if (!currentPuzzle || !currentSolution || !userGrid) throw new Error("Invalid saved data structure.");
-                console.log("Game state restored successfully.");
-            } catch (error) {
-                console.error("Error restoring game state:", error);
-                statusMessageElement.textContent = "Ошибка загрузки сохранения. Начинаем новую игру.";
-                statusMessageElement.className = 'incorrect-msg';
-                clearSavedGameState();
-                // Если восстановление не удалось, генерируем новую игру с выбранной сложностью
-                return initGame(difficulty); // Рекурсивный вызов без restoreState
-            }
-        } else {
-            console.log(`Generating new game with difficulty: ${difficulty}...`);
-            try {
-                if (typeof sudoku === 'undefined' || !sudoku?.generate) throw new Error("sudoku.js library not found or generate function missing.");
-                currentPuzzle = sudoku.generate(difficulty);
-                if (!currentPuzzle) throw new Error(`Failed to generate puzzle for difficulty: ${difficulty}`);
+html {
+    height: 100%;
+    font-size: 16px;
+}
 
-                // Пытаемся решить дважды для надежности (как было в оригинале)
-                currentSolution = sudoku.solve(currentPuzzle) || sudoku.solve(currentPuzzle);
-                if (!currentSolution) throw new Error("Failed to solve the generated puzzle.");
+body {
+    font-family: sans-serif;
+    display: flex; /* Используем Flex для выравнивания */
+    flex-direction: column; /* Основные блоки идут друг под другом */
+    justify-content: center; /* Центрируем контент по вертикали (для стартовых экранов) */
+    align-items: center; /* Центрируем по горизонтали */
+    margin: 0;
+    padding: 10px; /* Добавим немного отступов */
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    touch-action: manipulation;
+    min-height: 100vh;
+    box-sizing: border-box;
+    transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease;
+    overflow-x: hidden; /* Предотвращаем горизонтальный скролл */
+}
 
-                userGrid = boardStringToObjectArray(currentPuzzle);
-                secondsElapsed = 0;
-                hintsRemaining = MAX_HINTS;
-                clearSavedGameState(); // Очищаем старое сохранение при старте новой игры
-                console.log("New game generated successfully.");
-            } catch (error) {
-                console.error("Error generating new game:", error);
-                statusMessageElement.textContent = "Ошибка генерации судоку! " + error.message;
-                statusMessageElement.className = 'incorrect-msg';
-                boardElement.innerHTML = '<p>Не удалось загрузить игру.</p>';
-                currentPuzzle = null; currentSolution = null; userGrid = []; hintsRemaining = 0;
-                stopTimer();
-                updateHintButtonState(); updateUndoButtonState();
-                showScreen(initialScreen); // Возврат на стартовый экран при ошибке генерации
-                return; // Прерываем инициализацию
-            }
-        }
+/* ===== Стили Экранов ===== */
+.screen {
+    width: 100%;
+    max-width: 600px; /* Максимальная ширина для контента */
+    display: none; /* По умолчанию все скрыты */
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    box-sizing: border-box;
+}
 
-        renderBoard(); // Отрисовка доски
-        updateHintButtonState(); // Обновляем кнопку подсказок
-        updateUndoButtonState(); // Обновляем кнопку отмены
-        updateTimerDisplay(); // Показываем начальное время (00:00)
-        startTimer(); // Запускаем таймер
-        showScreen(gameContainer); // Показываем игровой экран
-        console.log("Game initialization complete. Game screen shown.");
-    }
+.screen.visible {
+    display: flex; /* Показываем активный экран */
+}
 
-    // --- Функции сохранения/загрузки состояния (Без изменений) ---
-    function saveGameState() { if (!currentPuzzle || !currentSolution || !userGrid?.length) return; const serializableGrid = userGrid.map(row => row.map(cell => ({ value: cell.value, notesArray: Array.from(cell.notes || []) }))); const gameState = { puzzle: currentPuzzle, solution: currentSolution, grid: serializableGrid, time: secondsElapsed, hints: hintsRemaining, difficulty: currentDifficulty, timestamp: Date.now() }; try { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState)); console.log("Game state saved.");} catch (error) { console.error("Save Err:", error); /* сообщение */ } }
-    function loadGameState() { const savedData = localStorage.getItem(SAVE_KEY); if (!savedData) { console.log("No saved game found."); return null;} try { const gameState = JSON.parse(savedData); if (gameState?.puzzle && gameState?.solution && gameState?.grid && gameState?.difficulty && gameState.timestamp) { console.log("Saved game found:", new Date(gameState.timestamp).toLocaleString(), "Difficulty:", gameState.difficulty); return gameState; } else { console.warn("Invalid save data structure found. Clearing."); clearSavedGameState(); return null; } } catch (error) { console.error("Error parsing saved game state:", error); clearSavedGameState(); return null; } }
-    function clearSavedGameState() { localStorage.removeItem(SAVE_KEY); console.log("Saved game state cleared."); checkContinueButton(); /* Обновляем состояние кнопки Продолжить */ }
+/* Когда активен игровой контейнер, body ведет себя иначе */
+body:has(#game-container.visible) {
+    justify-content: flex-start; /* Не центрируем по вертикали, игра сверху */
+}
 
-    // --- Функции для Undo (Без изменений) ---
-    function createHistoryState() { if (!userGrid?.length) return null; const gridCopy = userGrid.map(row => row.map(cell => ({ value: cell.value, notes: new Set(cell.notes || []) }))); return { grid: gridCopy, hints: hintsRemaining }; }
-    function pushHistoryState() { const stateToPush = createHistoryState(); if (stateToPush) { historyStack.push(stateToPush); updateUndoButtonState(); } else { console.warn("Invalid history push attempt."); } }
-    function handleUndo() { if (historyStack.length === 0 || isShowingAd) return; stopTimer(); const previousState = historyStack.pop(); console.log("Undo action triggered..."); try { const hintsBeforeAction = previousState.hints; const hintsNow = hintsRemaining; userGrid = previousState.grid; if (hintsBeforeAction <= hintsNow) { hintsRemaining = hintsBeforeAction; } else { console.log("Undo Hint Use: Hint count not restored (was used in this step)."); } renderBoard(); clearSelection(); clearErrors(); updateHintButtonState(); updateUndoButtonState(); saveGameState(); console.log("Undo successful."); } catch(error) { console.error("Undo Err:", error); statusMessageElement.textContent = "Ошибка отмены хода!"; statusMessageElement.className = 'incorrect-msg'; historyStack = []; updateUndoButtonState(); } finally { resumeTimerIfNeeded(); /* Возобновляем таймер, если игра не решена */ } }
-    function updateUndoButtonState() { if (undoButton) { undoButton.disabled = historyStack.length === 0; } }
+/* ===== Начальный Экран ===== */
+#initial-screen h1 {
+    margin-top: 0;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    color: var(--text-primary);
+}
 
-    // --- Функции для таймера (Небольшое изменение в startTimer) ---
-    function startTimer() {
-        if(timerInterval || !gameContainer.classList.contains('visible')) return; // Не запускаем, если уже идет или не на игровом экране
-        updateTimerDisplay(); // Обновляем сразу
-        timerInterval = setInterval(() => {
-             secondsElapsed++;
-             updateTimerDisplay();
-             if (secondsElapsed % 10 === 0) { // Сохраняем каждые 10 сек
-                 saveGameState();
-             }
-        }, 1000);
-        console.log("Timer started.");
-    }
-    function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; console.log("Timer stopped."); saveGameState(); /* Сохраняемся при остановке */ } }
-    function updateTimerDisplay() { if (!timerElement) return; const minutes = Math.floor(secondsElapsed / 60); const seconds = secondsElapsed % 60; timerElement.textContent = `Время: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
+.initial-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 300px; /* Ограничиваем ширину кнопок */
+}
 
-    // --- Преобразование строки в сетку (Без изменений) ---
-    function boardStringToObjectArray(boardString) { const grid = []; for (let r = 0; r < 9; r++) { grid[r] = []; for (let c = 0; c < 9; c++) { const index = r * 9 + c; if (index >= boardString.length) { grid[r][c] = { value: 0, notes: new Set() }; continue; } const char = boardString[index]; const value = (char === '.' || char === '0') ? 0 : parseInt(char); grid[r][c] = { value: value, notes: new Set() }; } } return grid; }
+.large-button {
+    padding: 15px 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--bg-large-button);
+    color: var(--text-inverted);
+    transition: background-color var(--transition-duration), opacity var(--transition-duration);
+}
 
-    // --- Отрисовка (Без изменений) ---
-    function renderBoard() { boardElement.innerHTML = ''; if (!userGrid?.length) { boardElement.innerHTML = '<p>Ошибка отрисовки</p>'; return; } for (let r = 0; r < 9; r++) { if (!userGrid[r]?.length) continue; for (let c = 0; c < 9; c++) { if (userGrid[r][c] === undefined) { const ph = document.createElement('div'); ph.classList.add('cell'); ph.textContent = '?'; boardElement.appendChild(ph); continue; } boardElement.appendChild(createCellElement(r, c)); } } /* console.log("Board Rendered."); */ }
-    function createCellElement(r, c) { const cell = document.createElement('div'); cell.classList.add('cell'); cell.dataset.row = r; cell.dataset.col = c; if (!userGrid[r]?.[c]) { cell.textContent = '?'; return cell; } const cellData = userGrid[r][c]; const valueContainer = document.createElement('div'); valueContainer.classList.add('cell-value-container'); const notesContainer = document.createElement('div'); notesContainer.classList.add('cell-notes-container'); if (cellData.value !== 0) { valueContainer.textContent = cellData.value; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none'; const idx = r * 9 + c; if (currentPuzzle?.[idx] && currentPuzzle[idx] !== '.' && currentPuzzle[idx] !== '0') cell.classList.add('given'); } else if (cellData.notes?.size > 0) { valueContainer.style.display = 'none'; notesContainer.style.display = 'grid'; notesContainer.innerHTML = ''; for (let n = 1; n <= 9; n++) { const nd = document.createElement('div'); nd.classList.add('note-digit'); nd.textContent = cellData.notes.has(n) ? n : ''; notesContainer.appendChild(nd); } } else { valueContainer.textContent = ''; valueContainer.style.display = 'flex'; notesContainer.style.display = 'none'; } cell.appendChild(valueContainer); cell.appendChild(notesContainer); if ((c + 1) % 3 === 0 && c < 8) cell.classList.add('thick-border-right'); if ((r + 1) % 3 === 0 && r < 8) cell.classList.add('thick-border-bottom'); return cell; }
-    function renderCell(r, c) { const oldCell = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (oldCell) { const newCell = createCellElement(r, c); if (oldCell.classList.contains('selected')) newCell.classList.add('selected'); if (oldCell.classList.contains('incorrect')) newCell.classList.add('incorrect'); if (oldCell.classList.contains('highlighted')) newCell.classList.add('highlighted'); if (selectedRow === r && selectedCol === c) selectedCell = newCell; oldCell.replaceWith(newCell); } else { console.warn(`renderCell: Cell [${r}, ${c}] not found?`); } }
+.large-button:hover:not(:disabled) {
+    background-color: var(--bg-large-button-hover);
+}
 
-    // --- Вспомогательные (Без изменений, кроме resumeTimerIfNeeded) ---
-    function getSolutionValue(row, col) { if (!currentSolution) return null; const index = row * 9 + col; if (index >= currentSolution.length) return null; const char = currentSolution[index]; return (char === '.' || char === '0') ? 0 : parseInt(char); }
-    function clearSelection() { if (selectedCell) selectedCell.classList.remove('selected'); boardElement.querySelectorAll('.cell.highlighted').forEach(cell => cell.classList.remove('highlighted')); selectedCell = null; selectedRow = -1; selectedCol = -1; }
-    function clearErrors() { boardElement.querySelectorAll('.cell.incorrect').forEach(cell => cell.classList.remove('incorrect')); statusMessageElement.textContent = ''; statusMessageElement.className = ''; }
-    function updateNoteToggleButtonState() { if (noteToggleButton) { noteToggleButton.classList.toggle('active', isNoteMode); noteToggleButton.title = `Режим заметок (${isNoteMode ? 'ВКЛ' : 'ВЫКЛ'})`; } }
-    function updateHintButtonState() { if (hintButton) { hintButton.textContent = `💡 ${hintsRemaining}/${MAX_HINTS}`; hintButton.disabled = !currentSolution || isGameSolved(); if (!currentSolution) { hintButton.title = "Игра не загружена"; } else if(isGameSolved()) { hintButton.title = "Игра решена"; } else if (hintsRemaining > 0) { hintButton.title = "Использовать подсказку"; } else { hintButton.title = `Получить ${HINTS_REWARD} подсказку (смотреть рекламу)`; } } else { console.warn("Hint button not found?"); } }
-    function highlightRelatedCells(row, col) { boardElement.querySelectorAll('.cell.highlighted').forEach(cell => cell.classList.remove('highlighted')); boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => cell.classList.add('highlighted')); }
-    function isGameSolved() { if (!userGrid || userGrid.length === 0) return false; return !userGrid.flat().some(cell => cell.value === 0); }
-    function resumeTimerIfNeeded() { if (gameContainer.classList.contains('visible') && !isGameSolved()) { startTimer(); } else { stopTimer(); } }
-
-    // --- Логика подсказки (Внутренняя + Предложение рекламы) (Без изменений) ---
-    function provideHintInternal() { pushHistoryState(); let hintUsed = false; try { if (!selectedCell) throw new Error("Ячейка не выбрана"); if (selectedCell.classList.contains('given')) throw new Error("Это начальная цифра"); const r = selectedRow; const c = selectedCol; if (!userGrid[r]?.[c]) throw new Error(`Ошибка данных ячейки [${r},${c}]`); if (userGrid[r][c].value !== 0) throw new Error("Ячейка уже заполнена"); const solutionValue = getSolutionValue(r, c); if (solutionValue > 0) { console.log(`Hint provided for [${r}, ${c}]: ${solutionValue}`); userGrid[r][c].value = solutionValue; userGrid[r][c].notes?.clear(); renderCell(r, c); const hintedCellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (hintedCellElement) { hintedCellElement.classList.remove('selected'); const hintColor = getComputedStyle(document.documentElement).getPropertyValue('--highlight-hint-flash').trim() || '#fffacd'; hintedCellElement.style.transition = 'background-color 0.1s ease-out'; hintedCellElement.style.backgroundColor = hintColor; setTimeout(() => { hintedCellElement.style.backgroundColor = ''; hintedCellElement.style.transition = ''; clearSelection(); }, 500); } else { clearSelection(); } hintsRemaining--; hintUsed = true; updateHintButtonState(); clearErrors(); saveGameState(); } else throw new Error(`Не найдено решение для [${r}, ${c}]`); } catch (error) { console.error("Hint Internal Error:", error.message); statusMessageElement.textContent = error.message; statusMessageElement.className = 'incorrect-msg'; setTimeout(() => { if (statusMessageElement.textContent === error.message) statusMessageElement.textContent = ""; }, 2500); if (!hintUsed) { historyStack.pop(); updateUndoButtonState(); } } }
-    function offerRewardedAdForHints() { if (isShowingAd) { console.log("Ad Offer deferred (already showing ad)."); return; } console.log("Offering rewarded ad for hints..."); if (confirm(`Подсказки закончились! Посмотреть рекламу, чтобы получить ${HINTS_REWARD} подсказку?`)) { console.log("User agreed to watch ad."); if (!isAdReady) { statusMessageElement.textContent = "Реклама загружается..."; statusMessageElement.className = ''; preloadRewardedAd(); return; } showRewardedAd({ onSuccess: () => { console.log("Ad Reward: +", HINTS_REWARD, "hint(s)"); hintsRemaining += HINTS_REWARD; updateHintButtonState(); saveGameState(); statusMessageElement.textContent = `Вы получили +${HINTS_REWARD} подсказку!`; statusMessageElement.className = 'correct'; setTimeout(() => { if (statusMessageElement.textContent.includes(`+${HINTS_REWARD}`)) statusMessageElement.textContent = ""; }, 3000); }, onError: (errorMsg) => { console.log("Ad Error/Skip:", errorMsg); statusMessageElement.textContent = `Ошибка: ${errorMsg || 'Реклама не показана'}. Подсказка не добавлена.`; statusMessageElement.className = 'incorrect-msg'; setTimeout(() => { if (statusMessageElement.textContent.startsWith("Ошибка:")) statusMessageElement.textContent = ""; }, 3000); } }); } else { console.log("User declined ad."); } }
-
-    // --- Обработчики Событий ---
-
-    // 1. Стартовый Экран
-    startNewGameButton.addEventListener('click', () => {
-        console.log("New Game button clicked.");
-        showScreen(newGameOptionsScreen);
-    });
-
-    continueGameButton.addEventListener('click', () => {
-        console.log("Continue Game button clicked.");
-        const savedState = loadGameState();
-        if (savedState) {
-            // Загружаем сложность из сохранения
-            const difficultyToLoad = savedState.difficulty || 'medium';
-            initGame(difficultyToLoad, savedState); // Инициализируем игру с сохраненным состоянием
-        } else {
-            console.warn("Continue clicked, but no saved game found.");
-            statusMessageElement.textContent = "Нет сохраненной игры.";
-            statusMessageElement.className = 'incorrect-msg';
-            continueGameButton.disabled = true; // На всякий случай еще раз отключаем
-        }
-    });
-
-    // 2. Экран Настроек Новой Игры
-    difficultyButtonsContainer.addEventListener('click', (event) => {
-        const target = event.target.closest('button.difficulty-button');
-        if (target && target.dataset.difficulty) {
-            const difficulty = target.dataset.difficulty;
-            console.log(`Difficulty selected: ${difficulty}`);
-            // Очищаем предыдущее состояние, т.к. начинаем новую игру
-            clearSavedGameState();
-            // Инициализируем игру с выбранной сложностью (без restoreState)
-            initGame(difficulty);
-        }
-    });
-
-    themeToggleCheckbox.addEventListener('change', handleThemeToggle);
-
-    backToInitialButton.addEventListener('click', () => {
-        console.log("Back button clicked.");
-        showScreen(initialScreen); // Показываем начальный экран
-        checkContinueButton(); // Проверяем кнопку "Продолжить" снова
-    });
+.large-button:disabled {
+    background-color: var(--bg-large-button-disabled);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
 
 
-    // 3. Игровой Экран
-    boardElement.addEventListener('click', (event) => { const target = event.target.closest('.cell'); if (!target || isShowingAd) return; const r = parseInt(target.dataset.row); const c = parseInt(target.dataset.col); if (isNaN(r) || isNaN(c)) return; if (target === selectedCell) { clearSelection(); } else { clearSelection(); selectedCell = target; selectedRow = r; selectedCol = c; if (!selectedCell.classList.contains('given')) selectedCell.classList.add('selected'); highlightRelatedCells(r, c); } clearErrors(); });
-    numpad.addEventListener('click', (event) => { const button = event.target.closest('button'); if (!button || isShowingAd) return; if (button.id === 'note-toggle-button') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); return; } if (!selectedCell || selectedCell.classList.contains('given')) { if(selectedCell?.classList.contains('given')) { /* msg */ } return; } clearErrors(); if (!userGrid[selectedRow]?.[selectedCol]) return; const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false; let stateChanged = false; let potentialChange = false; if (button.id === 'erase-button') { potentialChange = (cellData.value !== 0) || (cellData.notes?.size > 0); } else if (button.dataset.num) { const num = parseInt(button.dataset.num); if (isNoteMode) { potentialChange = (cellData.value === 0); } else { potentialChange = (cellData.value !== num); } } if (potentialChange && !isGameSolved()) { pushHistoryState(); } if (button.id === 'erase-button') { if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; } else if (cellData.notes?.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; } } else if (button.dataset.num) { const num = parseInt(button.dataset.num); if (isNoteMode) { if (cellData.value === 0) { if (!cellData.notes) cellData.notes = new Set(); if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; stateChanged = true; } else { /* msg */ } } else { if (cellData.value !== num) { cellData.value = num; cellData.notes?.clear(); needsRender = true; stateChanged = true; } else { cellData.value = 0; needsRender = true; stateChanged = true; } } } if (needsRender) renderCell(selectedRow, selectedCol); if (stateChanged && !isGameSolved()) saveGameState(); });
-    document.addEventListener('keydown', (event) => { if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || isShowingAd || !gameContainer.classList.contains('visible') /* Игнор, если не на игровом экране */) return; if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); handleUndo(); return; } if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault(); return; } if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) { if (!selectedCell) { const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`); if (startCell) startCell.click(); else return; } let nextRow = selectedRow; let nextCol = selectedCol; const move = (current, delta, max) => Math.min(max, Math.max(0, current + delta)); if (event.key === 'ArrowUp') nextRow = move(selectedRow, -1, 8); if (event.key === 'ArrowDown') nextRow = move(selectedRow, 1, 8); if (event.key === 'ArrowLeft') nextCol = move(selectedCol, -1, 8); if (event.key === 'ArrowRight') nextCol = move(selectedCol, 1, 8); if (nextRow !== selectedRow || nextCol !== selectedCol) { const nextCellElement = boardElement.querySelector(`.cell[data-row='${nextRow}'][data-col='${nextCol}']`); if (nextCellElement) nextCellElement.click(); } event.preventDefault(); return; } if (!selectedCell || selectedCell.classList.contains('given')) return; if (!userGrid[selectedRow]?.[selectedCol]) return; const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false; let stateChanged = false; let potentialChange = false; if (event.key >= '1' && event.key <= '9') { const num = parseInt(event.key); if (isNoteMode) { potentialChange = (cellData.value === 0); } else { potentialChange = (cellData.value !== num); } } else if (event.key === 'Backspace' || event.key === 'Delete') { potentialChange = (cellData.value !== 0) || (cellData.notes?.size > 0); } if (potentialChange && !isGameSolved()) { pushHistoryState(); } if (event.key >= '1' && event.key <= '9') { clearErrors(); const num = parseInt(event.key); if (isNoteMode) { if (cellData.value === 0) { if (!cellData.notes) cellData.notes = new Set(); if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; stateChanged = true; } } else { if (cellData.value !== num) { cellData.value = num; cellData.notes?.clear(); needsRender = true; stateChanged = true; } else { cellData.value = 0; needsRender = true; stateChanged = true; } } event.preventDefault(); } else if (event.key === 'Backspace' || event.key === 'Delete') { clearErrors(); if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; } else if (cellData.notes?.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; } event.preventDefault(); } if (needsRender) renderCell(selectedRow, selectedCol); if (stateChanged && !isGameSolved()) saveGameState(); });
-    checkButton.addEventListener('click', () => { console.log("Check button clicked."); clearErrors(); if (!currentSolution || !userGrid) return; let allCorrect = true; let boardComplete = true; for (let r = 0; r < 9; r++) { if (!userGrid[r]) continue; for (let c = 0; c < 9; c++) { if (!userGrid[r][c]) continue; const cd = userGrid[r][c]; const uv = cd.value; const ce = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (!ce) continue; if (uv === 0) { boardComplete = false; } else if (!ce.classList.contains('given')) { const sv = getSolutionValue(r, c); if (uv !== sv) { ce.classList.add('incorrect'); allCorrect = false; } } } } if (allCorrect && boardComplete) { statusMessageElement.textContent = "Поздравляем! Судоку решено верно!"; statusMessageElement.className = 'correct'; stopTimer(); clearSelection(); updateHintButtonState(); // Обновит состояние кнопки (disabled) // clearSavedGameState(); // Не очищаем, чтобы можно было посмотреть решенную доску // historyStack = []; // Тоже не очищаем, вдруг захотят отменить? // updateUndoButtonState(); } else if (!allCorrect) { statusMessageElement.textContent = "Найдены ошибки."; statusMessageElement.className = 'incorrect-msg'; } else { statusMessageElement.textContent = "Пока верно, но не закончено."; statusMessageElement.className = ''; } });
-    if (undoButton) { undoButton.addEventListener('click', handleUndo); } else { console.error("Undo Button not found?"); }
-    if (hintButton) { hintButton.addEventListener('click', () => { if (isShowingAd || isGameSolved()) return; if (hintsRemaining > 0) { provideHintInternal(); } else { offerRewardedAdForHints(); } }); } else { console.error("Hint Button not found?"); }
-    exitGameButton.addEventListener('click', () => {
-        console.log("Exit to menu button clicked.");
-        stopTimer(); // Остановка таймера (сохранение произойдет внутри)
-        showScreen(initialScreen); // Показать начальный экран
-        checkContinueButton(); // Обновить состояние кнопки "Продолжить"
-    });
+/* ===== Экран Настроек Новой Игры ===== */
+#new-game-options h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
 
-    // --- Инициализация Приложения ---
-    function initializeApp() {
-        console.log("Initializing application...");
-        loadThemePreference(); // Загружаем тему
-        checkContinueButton(); // Проверяем наличие сохранения и активируем/деактивируем кнопку
-        showScreen(initialScreen); // Показываем начальный экран по умолчанию
-        initializeAds(); // Инициализируем плейсхолдер рекламы
-        // Инициализация TG SDK
-        try { if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); console.log("TG SDK ready."); } else { console.log("TG SDK not found."); } } catch (e) { console.error("TG SDK Error:", e); }
-        console.log("Application initialized.");
-    }
+.options-container {
+    display: flex;
+    flex-direction: column; /* Размещаем блоки друг под другом */
+    gap: 30px; /* Расстояние между блоками сложности и темы */
+    padding: 20px;
+    background-color: var(--bg-options-container);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 400px; /* Ограничиваем ширину */
+    align-items: center; /* Центрируем содержимое блоков */
+}
 
-    // Функция для проверки и установки состояния кнопки "Продолжить"
-    function checkContinueButton() {
-        const savedState = loadGameState(); // Просто проверяем наличие валидного сохранения
-        if (continueGameButton) {
-            continueGameButton.disabled = !savedState;
-            console.log(`Continue button state updated. Enabled: ${!continueGameButton.disabled}`);
-        }
-    }
+.difficulty-selection, .theme-selection {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-    // --- Запуск ---
-    initializeApp();
+.difficulty-selection h3, .theme-selection h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--text-secondary);
+}
 
-}); // Конец 'DOMContentLoaded'
+.difficulty-selection button.difficulty-button {
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    border: 1px solid var(--border-difficulty-button);
+    border-radius: 5px;
+    background-color: var(--bg-difficulty-button);
+    color: var(--text-primary);
+    transition: background-color var(--transition-duration), border-color var(--transition-duration);
+    width: 80%; /* Ширина кнопок сложности */
+    margin-bottom: 8px; /* Отступ между кнопками */
+}
+
+.difficulty-selection button.difficulty-button:hover {
+    background-color: var(--bg-difficulty-button-hover);
+    border-color: var(--border-difficulty-button-hover);
+}
+
+#back-to-initial-button {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--button-back-bg);
+    color: var(--text-inverted);
+    transition: background-color var(--transition-duration);
+    margin-top: 10px; /* Отступ от блока опций */
+}
+#back-to-initial-button:hover {
+    background-color: var(--button-back-hover);
+}
+
+
+/* --- Переключатель Темы --- */
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 70px;  /* Ширина переключателя */
+    height: 34px; /* Высота переключателя */
+}
+
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-theme-switch-track);
+    transition: var(--transition-duration);
+    border-radius: 34px;
+    display: flex; /* Для позиционирования иконок */
+    align-items: center; /* Выравниваем иконки по вертикали */
+}
+
+.slider:before { /* Сам переключатель (кружок) */
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: var(--bg-theme-switch-knob);
+    transition: var(--transition-duration);
+    border-radius: 50%;
+    z-index: 2; /* Поверх иконок */
+}
+
+input:checked + .slider {
+    background-color: var(--button-primary-bg); /* Цвет активной дорожки */
+}
+
+input:checked + .slider:before {
+    transform: translateX(36px); /* Сдвигаем кружок вправо */
+}
+
+/* Иконки внутри переключателя */
+.slider .icon {
+    position: absolute;
+    z-index: 1; /* Под кружком */
+    font-size: 16px;
+    transition: opacity var(--transition-duration);
+    user-select: none;
+}
+.slider .sun {
+    left: 8px;
+    opacity: 1; /* Видна в светлой теме */
+}
+.slider .moon {
+    right: 8px;
+    opacity: 0; /* Скрыта в светлой теме */
+}
+
+/* Показываем/скрываем иконки при переключении */
+input:checked + .slider .sun { opacity: 0; }
+input:checked + .slider .moon { opacity: 1; }
+
+
+/* ===== Игровой Экран ===== */
+/* Стили для #game-container будут действовать, когда он .visible */
+#game-container h1 { /* Если решите оставить заголовок здесь */
+    margin-top: 5px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-size: 1.6em;
+    flex-shrink: 0;
+}
+
+/* --- Таймер --- */
+#timer-container {
+    margin-bottom: 8px;
+    width: clamp(270px, 90vw, 500px);
+    max-width: 100%;
+    text-align: right;
+    flex-shrink: 0;
+}
+#timer {
+    font-size: 1em;
+    font-weight: bold;
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* --- Доска Судоку --- */
+#sudoku-board {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(28px, 1fr));
+    grid-template-rows: repeat(9, minmax(28px, 1fr));
+    width: clamp(260px, 85vmin, 480px);
+    height: clamp(260px, 85vmin, 480px);
+    max-width: 95vw;
+    max-height: 65vh; /* Ограничиваем высоту доски */
+    border: 3px solid var(--border-secondary);
+    margin-bottom: 10px;
+    background-color: var(--bg-secondary);
+    overflow: hidden;
+    transition: filter var(--transition-duration) ease-in-out, background-color var(--transition-duration) ease, border-color var(--transition-duration) ease;
+    flex-shrink: 0; /* Доска не должна сжиматься */
+}
+/* Стили ячеек и их состояний (остаются как были, но используют CSS переменные) */
+.cell { display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-primary); cursor: pointer; box-sizing: border-box; user-select: none; -webkit-user-select: none; position: relative; overflow: hidden; transition: background-color 0.1s ease-in-out, border-color var(--transition-duration) ease; }
+.cell:nth-child(n+10) { border-top: none; }
+.cell:not(:nth-child(9n+1)) { border-left: none; }
+.thick-border-right { border-right-width: 2px !important; border-right-color: var(--border-secondary) !important; }
+.thick-border-bottom { border-bottom-width: 2px !important; border-bottom-color: var(--border-secondary) !important; }
+.cell-value-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: clamp(1em, 4vmin, 1.5em); line-height: 1; font-weight: bold; color: var(--text-accent); }
+.cell-notes-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 0px; padding: 1px; box-sizing: border-box; display: none; }
+.note-digit { display: flex; justify-content: center; align-items: center; font-size: clamp(0.6em, 2vmin, 0.8em); line-height: 1; color: var(--text-note); text-align: center; }
+.cell.given { background-color: var(--bg-secondary); cursor: default; }
+.cell.given .cell-value-container { color: var(--text-given); }
+.cell.highlighted { background-color: var(--highlight-weak); }
+.cell.incorrect .cell-value-container { color: var(--highlight-error-text) !important; }
+.cell.incorrect { background-color: var(--highlight-error-bg); }
+.cell.selected { background-color: var(--highlight-strong); }
+.cell[style*="background-color: rgb(255, 250, 205)"] { background-color: var(--highlight-hint-flash) !important; }
+.cell[style*="background-color: var(--highlight-hint-flash)"] { background-color: var(--highlight-hint-flash) !important; }
+
+/* --- Элементы управления в игре --- */
+#controls { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; flex-shrink: 0; }
+#controls button { padding: 8px 12px; font-size: 0.9em; cursor: pointer; border: none; border-radius: 5px; background-color: var(--button-primary-bg); color: var(--text-inverted); transition: background-color 0.2s, opacity 0.2s; white-space: nowrap; }
+#controls button:hover { background-color: var(--button-primary-hover); }
+#controls button:active { background-color: var(--button-primary-active); }
+#hint-button { background-color: var(--button-success-bg); }
+#hint-button:hover { background-color: var(--button-success-hover); }
+#hint-button:active { background-color: var(--button-success-active); }
+#hint-button:disabled,
+#undo-button:disabled { background-color: var(--button-disabled-bg); opacity: var(--button-disabled-opacity); cursor: not-allowed; }
+#undo-button { background-color: var(--button-warning-bg); color: var(--text-warning-fg); }
+#undo-button:hover { background-color: var(--button-warning-hover); }
+#undo-button:active { background-color: var(--button-warning-active); }
+#exit-game-button { background-color: var(--button-exit-bg); } /* Стиль кнопки Выхода */
+#exit-game-button:hover { background-color: var(--button-exit-hover); }
+
+/* --- Статус --- */
+#status-message { margin-top: 4px; margin-bottom: 8px; font-size: 0.9em; min-height: 1.2em; font-weight: bold; text-align: center; flex-shrink: 0; transition: color var(--transition-duration) ease; }
+.correct { color: var(--text-success); }
+.incorrect-msg { color: var(--text-danger); }
+
+/* --- Цифровая панель --- */
+#numpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 4px; margin-top: 0; width: clamp(220px, 80vw, 280px); max-width: 95vw; flex-shrink: 0; }
+#numpad button { padding: 8px 0; font-size: 1.1em; font-weight: bold; cursor: pointer; border: 1px solid var(--border-primary); border-radius: 5px; background-color: var(--bg-numpad-button); color: var(--text-primary); transition: background-color 0.2s, box-shadow 0.2s, color 0.2s, border-color 0.2s; -webkit-tap-highlight-color: transparent; }
+#numpad button:hover { background-color: var(--bg-numpad-button-hover); }
+#numpad button:active { background-color: var(--bg-numpad-button-active); }
+#note-toggle-button { grid-column: 1 / 2; grid-row: 4 / 5; font-size: 1.3em; }
+#erase-button { grid-column: 2 / 4; grid-row: 4 / 5; background-color: var(--button-warning-bg); color: var(--text-warning-fg); }
+#erase-button:hover { background-color: var(--button-warning-hover); }
+#note-toggle-button.active { background-color: var(--button-note-active-bg); color: var(--text-inverted); border-color: var(--button-note-active-border); box-shadow: inset 0 2px 4px var(--button-note-active-shadow); }
+#note-toggle-button.active:hover { background-color: var(--button-note-active-bg); color: var(--text-inverted); border-color: var(--button-note-active-border); box-shadow: inset 0 2px 4px var(--button-note-active-shadow); }
