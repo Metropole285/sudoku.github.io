@@ -12,70 +12,85 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <!-- Заголовок игры -->
-    <h1>Судоку</h1>
-    <div id="timer-container">
-        <div id="timer">Время: 00:00</div> <!-- Элемент для таймера -->
-    </div>
-    <!-- Контейнер для доски Судоку -->
-    <div id="sudoku-board">
-        <!-- Ячейки будут сгенерированы и добавлены сюда через JavaScript -->
-    </div>
 
-    <!-- Контейнер для кнопок управления игрой -->
-    <div id="controls">
-        <!-- ==== НОВАЯ КНОПКА ОТМЕНЫ ==== -->
-        <button id="undo-button" title="Отменить ход (Ctrl+Z)" disabled>↩️ Отмена</button>
-        <!-- ============================ -->
-        <button id="check-button">Проверить</button>
-        <button id="new-game-button">Новая игра</button>
-        <button id="hint-button" title="Использовать подсказку">💡 3/3</button>
-    </div>
-
-    <!-- Элемент для вывода сообщений статуса (ошибки, успех) -->
-    <div id="status-message"></div>
-
-    <!-- Цифровая панель для ввода -->
-    <div id="numpad">
-        <!-- Кнопки для цифр 1-9 -->
-        <button data-num="1">1</button>
-        <button data-num="2">2</button>
-        <button data-num="3">3</button>
-        <button data-num="4">4</button>
-        <button data-num="5">5</button>
-        <button data-num="6">6</button>
-        <button data-num="7">7</button>
-        <button data-num="8">8</button>
-        <button data-num="9">9</button>
-        <!-- Кнопка переключения режима заметок -->
-        <button id="note-toggle-button" title="Режим заметок (ВЫКЛ)">📝</button>
-        <!-- Кнопка стирания значения/заметок -->
-        <button id="erase-button">Стереть</button>
-    </div>
-
-    <!-- ==== Модальное окно выбора сложности ==== -->
-    <!-- Оверлей для затемнения/размытия фона -->
-    <div id="modal-overlay"></div>
-    <!-- Само модальное окно -->
-    <div id="difficulty-modal">
-        <h2>Выберите сложность:</h2>
-        <!-- Контейнер для кнопок внутри модального окна -->
-        <div class="modal-buttons">
-            <button class="difficulty-button" data-difficulty="easy">Лёгкий</button>
-            <button class="difficulty-button" data-difficulty="medium">Средний</button>
-            <button class="difficulty-button" data-difficulty="hard">Сложный</button>
-            <button class="difficulty-button" data-difficulty="very-hard">Очень сложный</button>
-            <button class="difficulty-button" data-difficulty="insane">Безумный</button>
-            <button class="difficulty-button" data-difficulty="inhuman">Нечеловеческий</button>
-            <!-- Кнопка отмены выбора сложности -->
-            <button id="cancel-difficulty-button">Отмена</button>
+    <!-- == Начальный Экран == -->
+    <div id="initial-screen" class="screen visible">
+        <h1>Судоку</h1>
+        <div class="initial-buttons">
+            <button id="start-new-game-button" class="large-button">Новая игра</button>
+            <button id="continue-game-button" class="large-button" disabled>Продолжить</button>
         </div>
     </div>
-    <!-- ======================================== -->
 
-    <!-- ==== КНОПКА ПЕРЕКЛЮЧЕНИЯ ТЕМЫ ==== -->
-    <button id="theme-toggle-button" title="Переключить тему">🌙</button>
-    <!-- ================================= -->
+    <!-- == Экран Настроек Новой Игры == -->
+    <div id="new-game-options" class="screen">
+        <h2>Начать новую игру</h2>
+        <div class="options-container">
+            <div class="difficulty-selection">
+                <h3>Выберите сложность:</h3>
+                <button class="difficulty-button" data-difficulty="easy">Лёгкий</button>
+                <button class="difficulty-button" data-difficulty="medium">Средний</button>
+                <button class="difficulty-button" data-difficulty="hard">Сложный</button>
+                <button class="difficulty-button" data-difficulty="very-hard">Очень сложный</button>
+                <button class="difficulty-button" data-difficulty="insane">Безумный</button>
+                <button class="difficulty-button" data-difficulty="inhuman">Нечеловеческий</button>
+            </div>
+            <div class="theme-selection">
+                <h3>Тема:</h3>
+                <label class="theme-switch" for="theme-toggle-checkbox" title="Переключить тему">
+                    <input type="checkbox" id="theme-toggle-checkbox">
+                    <span class="slider round">
+                        <span class="icon sun">☀️</span>
+                        <span class="icon moon">🌙</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+         <button id="back-to-initial-button">Назад</button> <!-- Кнопка Назад -->
+    </div>
+
+    <!-- == Игровой Экран == -->
+    <div id="game-container" class="screen">
+        <!-- Заголовок игры (можно скрыть, если не нужен здесь) -->
+        <!-- <h1>Судоку</h1> -->
+        <div id="timer-container">
+            <div id="timer">Время: 00:00</div> <!-- Элемент для таймера -->
+        </div>
+        <!-- Контейнер для доски Судоку -->
+        <div id="sudoku-board">
+            <!-- Ячейки будут сгенерированы и добавлены сюда через JavaScript -->
+        </div>
+
+        <!-- Контейнер для кнопок управления игрой -->
+        <div id="controls">
+            <button id="undo-button" title="Отменить ход (Ctrl+Z)" disabled>↩️ Отмена</button>
+            <button id="check-button">Проверить</button>
+            <!-- Убрали кнопку "Новая игра" отсюда, так как она теперь на стартовом экране -->
+            <button id="hint-button" title="Использовать подсказку">💡 3/3</button>
+            <button id="exit-game-button" title="Выйти в меню">Меню</button> <!-- Кнопка Выхода -->
+        </div>
+
+        <!-- Элемент для вывода сообщений статуса (ошибки, успех) -->
+        <div id="status-message"></div>
+
+        <!-- Цифровая панель для ввода -->
+        <div id="numpad">
+            <button data-num="1">1</button>
+            <button data-num="2">2</button>
+            <button data-num="3">3</button>
+            <button data-num="4">4</button>
+            <button data-num="5">5</button>
+            <button data-num="6">6</button>
+            <button data-num="7">7</button>
+            <button data-num="8">8</button>
+            <button data-num="9">9</button>
+            <button id="note-toggle-button" title="Режим заметок (ВЫКЛ)">📝</button>
+            <button id="erase-button">Стереть</button>
+        </div>
+    </div>
+
+    <!-- Старая кнопка темы удалена -->
+    <!-- Старое модальное окно и оверлей удалены -->
 
     <!-- Подключение основного скрипта игры (ВАЖНО: в конце body) -->
     <script src="script.js"></script>
