@@ -68,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Функции Управления Экранами ---
     function showScreen(screenToShow) {
-        // Добавим проверку на существование экранов перед манипуляцией
         [initialScreen, newGameOptionsScreen, gameContainer].forEach(screen => {
             if (screen) screen.classList.remove('visible');
             else console.warn("A screen element was not found during showScreen iteration.");
@@ -78,12 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`Screen shown: #${screenToShow.id}`);
         } else {
             console.error("showScreen: screenToShow is null or undefined! Cannot show screen.");
-            // Как запасной вариант, можно показать начальный экран, если он есть
             if (initialScreen) {
                 initialScreen.classList.add('visible');
                 console.log("Fallback: Showing initial screen.");
             } else {
-                 // Совсем крайний случай - пишем прямо в body
                  document.body.innerHTML = '<p style="color: red; font-size: 20px;">Critical Error: Cannot display any screen.</p>';
             }
         }
@@ -93,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyTheme(theme) {
         const isDark = theme === 'dark';
         document.body.classList.toggle('dark-theme', isDark);
-        if (themeToggleCheckbox) { // Проверка на null
+        if (themeToggleCheckbox) {
             themeToggleCheckbox.checked = isDark;
         } else {
             console.warn("Theme toggle checkbox not found, cannot sync state.");
@@ -103,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                  const bodyStyle = getComputedStyle(document.body);
                  const headerColor = bodyStyle.getPropertyValue('--bg-primary').trim();
-                 if (headerColor) { // Убедимся, что цвет получили
+                 if (headerColor) {
                     Telegram.WebApp.setHeaderColor(headerColor);
                     // Telegram.WebApp.setBackgroundColor(headerColor);
                     console.log("Informed Telegram about theme change.");
@@ -121,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             applyTheme(currentTheme);
         } catch (e) {
             console.error("Error loading theme preference:", e);
-            applyTheme('light'); // Запасной вариант
+            applyTheme('light');
         }
     }
 
@@ -143,14 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Инициализация ИГРЫ ---
     function initGame(difficulty, restoreState = null) {
         console.log(`InitGame called: difficulty=${difficulty}, restore=${!!restoreState}`);
-        // Проверим критичные элементы для игры
         if (!boardElement || !statusMessageElement || !timerElement || !hintButton || !undoButton || !noteToggleButton) {
              console.error("Cannot initialize game: Essential game elements are missing!");
              if (statusMessageElement) {
                  statusMessageElement.textContent = "Критическая ошибка: Отсутствуют элементы игры.";
                  statusMessageElement.className = 'incorrect-msg';
              }
-             return; // Не можем продолжить
+             return;
         }
 
         currentDifficulty = difficulty;
@@ -199,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof sudoku.solve !== 'function') {
                      throw new Error("Sudoku library ('sudoku.js') 'solve' function is missing.");
                 }
-                currentSolution = sudoku.solve(currentPuzzle) || sudoku.solve(currentPuzzle); // Try solving
+                currentSolution = sudoku.solve(currentPuzzle) || sudoku.solve(currentPuzzle);
                 if (!currentSolution) throw new Error("Failed to solve the generated puzzle. The puzzle might be invalid.");
 
                 userGrid = boardStringToObjectArray(currentPuzzle);
@@ -215,8 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentPuzzle = null; currentSolution = null; userGrid = []; hintsRemaining = 0;
                 stopTimer();
                 updateHintButtonState(); updateUndoButtonState();
-                // Не показываем здесь начальный экран, пусть остается сообщение об ошибке
-                return; // Прерываем инициализацию
+                return;
             }
         }
 
@@ -225,13 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUndoButtonState();
         updateTimerDisplay();
         startTimer();
-        showScreen(gameContainer); // Показываем игровой экран ТОЛЬКО если все прошло успешно
+        showScreen(gameContainer);
         console.log("Game initialization complete. Game screen shown.");
     }
 
     // --- Функции сохранения/загрузки состояния ---
     function saveGameState() {
-        // Добавим проверку userGrid перед сохранением
         if (!currentPuzzle || !currentSolution || !userGrid || userGrid.length !== 9) {
              console.warn("Cannot save game state: Invalid game data.");
              return;
@@ -263,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
          if (!savedData) { console.log("No saved game found."); return null;}
          try {
              const gameState = JSON.parse(savedData);
-             // Более строгая проверка структуры
              if (gameState && typeof gameState === 'object' &&
                  gameState.puzzle && gameState.solution && Array.isArray(gameState.grid) &&
                  gameState.difficulty && typeof gameState.timestamp === 'number')
@@ -285,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
          try {
              localStorage.removeItem(SAVE_KEY);
              console.log("Saved game state cleared.");
-             checkContinueButton(); // Обновляем кнопку сразу
+             checkContinueButton();
          } catch (e) {
              console.error("Error clearing saved game state:", e);
          }
@@ -308,7 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
         console.log("Timer started.");
     }
-    function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; console.log("Timer stopped."); saveGameState(); } }
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            console.log("Timer stopped.");
+            saveGameState(); // <-- Лишняя скобка УДАЛЕНА
+        }
+    }
     function updateTimerDisplay() { if (!timerElement) return; const minutes = Math.floor(secondsElapsed / 60); const seconds = secondsElapsed % 60; timerElement.textContent = `Время: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
 
     // --- Преобразование строки в сетку ---
@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Логика подсказки (Внутренняя + Предложение рекламы) ---
     function provideHintInternal() { if (!selectedCell) { if(statusMessageElement) { statusMessageElement.textContent = "Выберите ячейку для подсказки."; statusMessageElement.className = '';} setTimeout(() => clearErrors(), 2000); return; } pushHistoryState(); let hintUsed = false; try { if (selectedCell.classList.contains('given')) throw new Error("Это начальная цифра"); const r = selectedRow; const c = selectedCol; if (r < 0 || c < 0 || !userGrid[r]?.[c]) throw new Error(`Ошибка данных ячейки [${r},${c}]`); if (userGrid[r][c].value !== 0) throw new Error("Ячейка уже заполнена"); const solutionValue = getSolutionValue(r, c); if (solutionValue > 0) { console.log(`Hint provided for [${r}, ${c}]: ${solutionValue}`); userGrid[r][c].value = solutionValue; if (userGrid[r][c].notes) userGrid[r][c].notes.clear(); renderCell(r, c); const hintedCellElement = boardElement?.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (hintedCellElement) { hintedCellElement.classList.remove('selected'); const hintColor = getComputedStyle(document.documentElement).getPropertyValue('--highlight-hint-flash').trim() || '#fffacd'; hintedCellElement.style.transition = 'background-color 0.1s ease-out'; hintedCellElement.style.backgroundColor = hintColor; setTimeout(() => { if(hintedCellElement) {hintedCellElement.style.backgroundColor = ''; hintedCellElement.style.transition = '';} clearSelection(); }, 500); } else { clearSelection(); } hintsRemaining--; hintUsed = true; updateHintButtonState(); clearErrors(); saveGameState(); if(isGameSolved()) { checkButton.click(); } } else throw new Error(`Не найдено решение для [${r}, ${c}]`); } catch (error) { console.error("Hint Internal Error:", error.message); if(statusMessageElement) { statusMessageElement.textContent = error.message; statusMessageElement.className = 'incorrect-msg'; setTimeout(() => clearErrors(), 2500); } if (!hintUsed) { historyStack.pop(); updateUndoButtonState(); } } }
-    function offerRewardedAdForHints() { if (isShowingAd) { console.log("Ad Offer deferred (already showing ad)."); return; } console.log("Offering rewarded ad for hints..."); if (confirm(`Подсказки закончились! Посмотреть рекламу, чтобы получить ${HINTS_REWARD} подсказку?`)) { console.log("User agreed to watch ad."); if (!isAdReady) { if(statusMessageElement) {statusMessageElement.textContent = "Реклама загружается..."; statusMessageElement.className = '';} preloadRewardedAd(); return; } showRewardedAd({ onSuccess: () => { console.log("Ad Reward: +", HINTS_REWARD, "hint(s)"); hintsRemaining += HINTS_REWARD; updateHintButtonState(); saveGameState(); if(statusMessageElement) {statusMessageElement.textContent = `Вы получили +${HINTS_REWARD} подсказку!`; statusMessageElement.className = 'correct'; setTimeout(() => { if (statusMessageElement.textContent.includes(`+${HINTS_REWARD}`)) statusMessageElement.textContent = ""; }, 3000); } }, onError: (errorMsg) => { console.log("Ad Error/Skip:", errorMsg); if(statusMessageElement) {statusMessageElement.textContent = `Ошибка: ${errorMsg || 'Реклама не показана'}. Подсказка не добавлена.`; statusMessageElement.className = 'incorrect-msg'; setTimeout(() => { if (statusMessageElement.textContent.startsWith("Ошибка:")) statusMessageElement.textContent = ""; }, 3000); } } }); } else { console.log("User declined ad."); } }
+    function offerRewardedAdForHints() { if (isShowingAd) { console.log("Ad Offer deferred (already showing ad)."); return; } console.log("Offering rewarded ad for hints..."); if (confirm(`Подсказки закончились! Посмотреть рекламу, чтобы получить ${HINTS_REWARD} подсказку?`)) { console.log("User agreed to watch ad."); if (!isAdReady) { if(statusMessageElement) {statusMessageElement.textContent = "Реклама загружается..."; statusMessageElement.className = '';} preloadRewardedAd(); return; } showRewardedAd({ onSuccess: () => { console.log("Ad Reward: +", HINTS_REWARD, "hint(s)"); hintsRemaining += HINTS_REWARD; updateHintButtonState(); saveGameState(); if(statusMessageElement) {statusMessageElement.textContent = `Вы получили +${HINTS_REWARD} подсказку!`; statusMessageElement.className = 'correct'; setTimeout(() => { if (statusMessageElement && statusMessageElement.textContent.includes(`+${HINTS_REWARD}`)) statusMessageElement.textContent = ""; }, 3000); } }, onError: (errorMsg) => { console.log("Ad Error/Skip:", errorMsg); if(statusMessageElement) {statusMessageElement.textContent = `Ошибка: ${errorMsg || 'Реклама не показана'}. Подсказка не добавлена.`; statusMessageElement.className = 'incorrect-msg'; setTimeout(() => { if (statusMessageElement && statusMessageElement.textContent.startsWith("Ошибка:")) statusMessageElement.textContent = ""; }, 3000); } } }); } else { console.log("User declined ad."); } }
 
     // --- Обработчики Событий ---
     function addEventListeners() {
