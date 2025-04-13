@@ -14,9 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalOverlay = document.getElementById('modal-overlay');
     const modalButtonsContainer = difficultyModal ? difficultyModal.querySelector('.modal-buttons') : null;
     const timerElement = document.getElementById('timer');
+    const themeToggleButton = document.getElementById('theme-toggle-button'); // << НОВОЕ
 
     // --- Ключи для localStorage ---
     const SAVE_KEY = 'sudokuGameState';
+    const THEME_KEY = 'sudokuThemePreference'; // << НОВОЕ
 
     // --- Переменные состояния игры ---
     let currentPuzzle = null; let currentSolution = null; let userGrid = [];
@@ -38,6 +40,47 @@ document.addEventListener('DOMContentLoaded', () => {
     function preloadRewardedAd() { if (isAdReady || isShowingAd) return; console.log("ADS Load..."); isAdReady = false; setTimeout(() => { if (!isShowingAd) { isAdReady = true; console.log("ADS Ready."); } else { console.log("ADS Load aborted (showing)."); } }, 3000 + Math.random() * 2000); }
     function showRewardedAd(callbacks) { if (!isAdReady || isShowingAd) { console.log("ADS Not ready/Showing."); if (callbacks.onError) callbacks.onError("Реклама не готова."); preloadRewardedAd(); return; } console.log("ADS Show..."); isShowingAd = true; isAdReady = false; statusMessageElement.textContent = "Показ рекламы..."; statusMessageElement.className = ''; document.body.style.pointerEvents = 'none'; setTimeout(() => { const success = Math.random() > 0.2; document.body.style.pointerEvents = 'auto'; statusMessageElement.textContent = ""; isShowingAd = false; console.log("ADS Show End."); if (success) { console.log("ADS Success!"); if (callbacks.onSuccess) callbacks.onSuccess(); } else { console.log("ADS Error/Skip."); if (callbacks.onError) callbacks.onError("Реклама не загружена / пропущена."); } preloadRewardedAd(); }, 5000); }
     // === КОНЕЦ ПЛЕЙСХОЛДЕРОВ ===
+
+    // --- Функции Темы --- // << НОВЫЙ БЛОК
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+            if (themeToggleButton) themeToggleButton.textContent = '☀️'; // Иконка солнца
+            console.log("Theme applied: dark");
+        } else {
+            document.body.classList.remove('dark-theme');
+            if (themeToggleButton) themeToggleButton.textContent = '🌙'; // Иконка луны
+            console.log("Theme applied: light");
+        }
+        // Дополнительно: Сообщаем Telegram о смене темы, если он используется
+        if (window.Telegram?.WebApp) {
+            try {
+                Telegram.WebApp.setHeaderColor(theme === 'dark' ? '#1e1e1e' : '#f0f0f0'); // Пример, цвет можно взять из CSS vars
+                // Telegram.WebApp.setBackgroundColor(theme === 'dark' ? '#1e1e1e' : '#f0f0f0');
+                console.log("Informed Telegram about theme change (if applicable).");
+            } catch (e) {
+                console.error("Error informing Telegram about theme change:", e);
+            }
+        }
+    }
+
+    function loadThemePreference() {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        // Опционально: Проверка системных настроек, если нет сохраненной
+        // const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // const currentTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+        const currentTheme = savedTheme || 'light'; // По умолчанию светлая
+        applyTheme(currentTheme);
+    }
+
+    function handleThemeToggle() {
+        const isDark = document.body.classList.contains('dark-theme');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyTheme(newTheme);
+        localStorage.setItem(THEME_KEY, newTheme);
+        console.log(`Theme saved: ${newTheme}`);
+    }
+    // --- Конец функций Темы ---
 
     // --- Инициализация новой игры ---
     function initGame(difficulty = "medium", restoreState = null) {
@@ -97,64 +140,57 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearErrors() { boardElement.querySelectorAll('.cell.incorrect').forEach(cell => cell.classList.remove('incorrect')); statusMessageElement.textContent = ''; statusMessageElement.className = ''; }
     function updateNoteToggleButtonState() { if (noteToggleButton) { noteToggleButton.classList.toggle('active', isNoteMode); noteToggleButton.title = `Режим заметок (${isNoteMode ? 'ВКЛ' : 'ВЫКЛ'})`; } }
 
-    // --- ИЗМЕНЕНА ЛОГИКА ОТКЛЮЧЕНИЯ КНОПКИ ПОДСКАЗКИ ---
+    // --- Логика кнопки подсказки (обновлена) ---
     function updateHintButtonState() {
         if (hintButton) {
             hintButton.textContent = `💡 ${hintsRemaining}/${MAX_HINTS}`;
-            // Отключаем ТОЛЬКО если игра не загружена (решение неизвестно)
-            hintButton.disabled = !currentSolution; // <<< ИСПРАВЛЕНИЕ ЗДЕСЬ
-
-            // Обновляем title в зависимости от состояния
-             if (!currentSolution) {
+            hintButton.disabled = !currentSolution; // Отключаем только если игра не загружена
+            if (!currentSolution) {
                 hintButton.title = "Игра не загружена";
             } else if (hintsRemaining > 0) {
                 hintButton.title = "Использовать подсказку";
             } else {
-                 // Подсказок нет, но кнопка активна для предложения рекламы
                  hintButton.title = `Получить ${HINTS_REWARD} подсказку (смотреть рекламу)`;
             }
         } else { console.warn("Hint button?"); }
     }
-    // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
+    // --- Функции модального окна сложности ---
     function showDifficultyModal() {
-    if (difficultyModal && modalOverlay) {
-        console.log("Showing difficulty modal...");
-        modalOverlay.classList.add('visible');
-        difficultyModal.classList.add('visible');
-    } else {
-        console.error("Модальное окно или оверлей не найдены!");
+        if (difficultyModal && modalOverlay) {
+            console.log("Showing difficulty modal...");
+            modalOverlay.classList.add('visible');
+            difficultyModal.classList.add('visible');
+        } else {
+            console.error("Модальное окно или оверлей не найдены!");
+        }
     }
-}
-
-function hideDifficultyModal() {
-    if (difficultyModal && modalOverlay) {
-        console.log("Hiding difficulty modal...");
-        modalOverlay.classList.remove('visible');
-        difficultyModal.classList.remove('visible');
+    function hideDifficultyModal() {
+        if (difficultyModal && modalOverlay) {
+            console.log("Hiding difficulty modal...");
+            modalOverlay.classList.remove('visible');
+            difficultyModal.classList.remove('visible');
+        }
+        resumeTimerIfNeeded(); // << Возобновляем таймер если нужно
     }
-     // Важно: После скрытия окна, нужно проверить, не решена ли игра,
-     // и если нет - запустить таймер обратно (если он был остановлен).
-     // Код ниже частично дублирует логику из обработчиков кликов на оверлее/кнопке отмены.
-     // Можно вынести в отдельную функцию `resumeTimerIfNeeded()`.
-     if (currentPuzzle && userGrid.length > 0) { // Проверяем, что игра загружена
-        let isSolved = !userGrid.flat().some((cell, i) => {
-             // Условие немного упрощено: проверяем только незаполненные ячейки, которые не были даны изначально
-             const isGiven = currentPuzzle && (currentPuzzle[i] !== '.' && currentPuzzle[i] !== '0');
-             return !isGiven && cell.value === 0;
-         });
 
-         if (!isSolved) {
-            // Если игра была в процессе и не решена,
-            // проверяем, был ли таймер остановлен именно кнопкой "Новая игра"
-            // (или кликом по оверлею/отмене). Если да, запускаем его обратно.
-            // Простой способ - просто вызвать startTimer(), он не запустит дубликат.
-            console.log("Resuming timer after modal close (if game not solved).");
-            startTimer();
-         } else {
-            console.log("Game is solved, timer remains stopped.");
-         }
-     }
-}
+    // --- Возобновление таймера после закрытия модалки/undo ---
+    function resumeTimerIfNeeded() {
+        if (currentPuzzle && userGrid.length > 0) {
+            let isSolved = !userGrid.flat().some((cell, i) => {
+                 const isGiven = currentPuzzle && (currentPuzzle[i] !== '.' && currentPuzzle[i] !== '0');
+                 return !isGiven && cell.value === 0;
+             });
+
+             if (!isSolved) {
+                console.log("Resuming timer (if needed).");
+                startTimer(); // startTimer() уже содержит проверку, запущен ли он
+             } else {
+                console.log("Game is solved, timer remains stopped.");
+             }
+        }
+    }
+
     function highlightRelatedCells(row, col) { boardElement.querySelectorAll('.cell.highlighted').forEach(cell => cell.classList.remove('highlighted')); boardElement.querySelectorAll(`.cell[data-row='${row}'], .cell[data-col='${col}']`).forEach(cell => cell.classList.add('highlighted')); }
 
     // --- Логика подсказки (внутренняя) ---
@@ -170,12 +206,23 @@ function hideDifficultyModal() {
                 console.log(`Hint [${r}, ${c}]: ${solutionValue}`);
                 userGrid[r][c].value = solutionValue; userGrid[r][c].notes?.clear(); renderCell(r, c);
                 const hintedCellElement = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-                if (hintedCellElement) { hintedCellElement.classList.remove('selected'); hintedCellElement.style.transition = 'background-color 0.1s ease-out'; hintedCellElement.style.backgroundColor = '#fffacd'; setTimeout(() => { hintedCellElement.style.backgroundColor = ''; hintedCellElement.style.transition = ''; clearSelection(); }, 500); } else { clearSelection(); }
+                if (hintedCellElement) {
+                    hintedCellElement.classList.remove('selected');
+                    // Используем переменную CSS для цвета вспышки
+                    const hintColor = getComputedStyle(document.documentElement).getPropertyValue('--highlight-hint-flash').trim() || '#fffacd';
+                    hintedCellElement.style.transition = 'background-color 0.1s ease-out';
+                    hintedCellElement.style.backgroundColor = hintColor;
+                    setTimeout(() => {
+                        hintedCellElement.style.backgroundColor = ''; // Убираем инлайн стиль
+                        hintedCellElement.style.transition = '';
+                        clearSelection();
+                    }, 500);
+                 } else { clearSelection(); }
                 hintsRemaining--; hintUsed = true; updateHintButtonState(); clearErrors(); saveGameState();
             } else throw new Error(`Ошибка решения [${r}, ${c}] (internal)`);
         } catch (error) {
              console.error("Hint Internal Err:", error.message); statusMessageElement.textContent = "Internal Hint Error"; statusMessageElement.className = 'incorrect-msg';
-             if (!hintUsed) { historyStack.pop(); updateUndoButtonState(); }
+             if (!hintUsed) { historyStack.pop(); updateUndoButtonState(); } // Откатываем историю если подсказка не удалась
         }
     }
 
@@ -209,7 +256,7 @@ function hideDifficultyModal() {
     // --- Обработчики событий ---
     boardElement.addEventListener('click', (event) => { const target = event.target.closest('.cell'); if (!target) return; const r = parseInt(target.dataset.row); const c = parseInt(target.dataset.col); if (isNaN(r) || isNaN(c)) return; if (target === selectedCell) { clearSelection(); } else { clearSelection(); selectedCell = target; selectedRow = r; selectedCol = c; if (!selectedCell.classList.contains('given')) selectedCell.classList.add('selected'); highlightRelatedCells(r, c); } clearErrors(); });
     numpad.addEventListener('click', (event) => { const button = event.target.closest('button'); if (!button) return; if (button.id === 'note-toggle-button') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); return; } if (!selectedCell || selectedCell.classList.contains('given')) { if(selectedCell?.classList.contains('given')) { /* msg */ } return; } clearErrors(); if (!userGrid[selectedRow]?.[selectedCol]) return; const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false; let stateChanged = false; let potentialChange = false; if (button.id === 'erase-button') { potentialChange = (cellData.value !== 0) || (cellData.notes?.size > 0); } else if (button.dataset.num) { const num = parseInt(button.dataset.num); if (isNoteMode) { potentialChange = (cellData.value === 0); } else { potentialChange = (cellData.value !== num); } } if (potentialChange) { pushHistoryState(); } if (button.id === 'erase-button') { if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; } else if (cellData.notes?.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; } } else if (button.dataset.num) { const num = parseInt(button.dataset.num); if (isNoteMode) { if (cellData.value === 0) { if (!cellData.notes) cellData.notes = new Set(); if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; stateChanged = true; } else { /* msg */ } } else { if (cellData.value !== num) { cellData.value = num; cellData.notes?.clear(); needsRender = true; stateChanged = true; } else { cellData.value = 0; needsRender = true; stateChanged = true; } } } if (needsRender) renderCell(selectedRow, selectedCol); if (stateChanged) saveGameState(); });
-    document.addEventListener('keydown', (event) => { if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return; if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); handleUndo(); return; } if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault(); return; } if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) { if (!selectedCell) { const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`); if (startCell) startCell.click(); else return; } let nextRow = selectedRow; let nextCol = selectedCol; const move = (current, delta, max) => Math.min(max, Math.max(0, current + delta)); if (event.key === 'ArrowUp') nextRow = move(selectedRow, -1, 8); if (event.key === 'ArrowDown') nextRow = move(selectedRow, 1, 8); if (event.key === 'ArrowLeft') nextCol = move(selectedCol, -1, 8); if (event.key === 'ArrowRight') nextCol = move(selectedCol, 1, 8); if (nextRow !== selectedRow || nextCol !== selectedCol) { const nextCellElement = boardElement.querySelector(`.cell[data-row='${nextRow}'][data-col='${nextCol}']`); if (nextCellElement) nextCellElement.click(); } event.preventDefault(); return; } if (!selectedCell || selectedCell.classList.contains('given')) return; if (!userGrid[selectedRow]?.[selectedCol]) return; const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false; let stateChanged = false; let potentialChange = false; if (event.key >= '1' && event.key <= '9') { const num = parseInt(event.key); if (isNoteMode) { potentialChange = (cellData.value === 0); } else { potentialChange = (cellData.value !== num); } } else if (event.key === 'Backspace' || event.key === 'Delete') { potentialChange = (cellData.value !== 0) || (cellData.notes?.size > 0); } if (potentialChange) { pushHistoryState(); } if (event.key >= '1' && event.key <= '9') { clearErrors(); const num = parseInt(event.key); if (isNoteMode) { if (cellData.value === 0) { if (!cellData.notes) cellData.notes = new Set(); if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; stateChanged = true; } } else { if (cellData.value !== num) { cellData.value = num; cellData.notes?.clear(); needsRender = true; stateChanged = true; } else { cellData.value = 0; needsRender = true; stateChanged = true; } } event.preventDefault(); } else if (event.key === 'Backspace' || event.key === 'Delete') { clearErrors(); if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; } else if (cellData.notes?.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; } event.preventDefault(); } if (needsRender) renderCell(selectedRow, selectedCol); if (stateChanged) saveGameState(); });
+    document.addEventListener('keydown', (event) => { if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || isShowingAd) return; /* Добавил isShowingAd */ if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); handleUndo(); return; } if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'т') { isNoteMode = !isNoteMode; updateNoteToggleButtonState(); event.preventDefault(); return; } if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) { if (!selectedCell) { const startCell = boardElement.querySelector(`.cell[data-row='0'][data-col='0']`); if (startCell) startCell.click(); else return; } let nextRow = selectedRow; let nextCol = selectedCol; const move = (current, delta, max) => Math.min(max, Math.max(0, current + delta)); if (event.key === 'ArrowUp') nextRow = move(selectedRow, -1, 8); if (event.key === 'ArrowDown') nextRow = move(selectedRow, 1, 8); if (event.key === 'ArrowLeft') nextCol = move(selectedCol, -1, 8); if (event.key === 'ArrowRight') nextCol = move(selectedCol, 1, 8); if (nextRow !== selectedRow || nextCol !== selectedCol) { const nextCellElement = boardElement.querySelector(`.cell[data-row='${nextRow}'][data-col='${nextCol}']`); if (nextCellElement) nextCellElement.click(); } event.preventDefault(); return; } if (!selectedCell || selectedCell.classList.contains('given')) return; if (!userGrid[selectedRow]?.[selectedCol]) return; const cellData = userGrid[selectedRow][selectedCol]; let needsRender = false; let stateChanged = false; let potentialChange = false; if (event.key >= '1' && event.key <= '9') { const num = parseInt(event.key); if (isNoteMode) { potentialChange = (cellData.value === 0); } else { potentialChange = (cellData.value !== num); } } else if (event.key === 'Backspace' || event.key === 'Delete') { potentialChange = (cellData.value !== 0) || (cellData.notes?.size > 0); } if (potentialChange) { pushHistoryState(); } if (event.key >= '1' && event.key <= '9') { clearErrors(); const num = parseInt(event.key); if (isNoteMode) { if (cellData.value === 0) { if (!cellData.notes) cellData.notes = new Set(); if (cellData.notes.has(num)) cellData.notes.delete(num); else cellData.notes.add(num); needsRender = true; stateChanged = true; } } else { if (cellData.value !== num) { cellData.value = num; cellData.notes?.clear(); needsRender = true; stateChanged = true; } else { cellData.value = 0; needsRender = true; stateChanged = true; } } event.preventDefault(); } else if (event.key === 'Backspace' || event.key === 'Delete') { clearErrors(); if (cellData.value !== 0) { cellData.value = 0; needsRender = true; stateChanged = true; } else if (cellData.notes?.size > 0) { cellData.notes.clear(); needsRender = true; stateChanged = true; } event.preventDefault(); } if (needsRender) renderCell(selectedRow, selectedCol); if (stateChanged) saveGameState(); });
     checkButton.addEventListener('click', () => { console.log("Checking..."); clearErrors(); if (!currentSolution || !userGrid) return; let allCorrect = true; let boardComplete = true; for (let r = 0; r < 9; r++) { if (!userGrid[r]) continue; for (let c = 0; c < 9; c++) { if (!userGrid[r][c]) continue; const cd = userGrid[r][c]; const uv = cd.value; const ce = boardElement.querySelector(`.cell[data-row='${r}'][data-col='${c}']`); if (!ce) continue; if (uv === 0) { boardComplete = false; } else if (!ce.classList.contains('given')) { const sv = getSolutionValue(r, c); if (uv !== sv) { ce.classList.add('incorrect'); allCorrect = false; } } } } if (allCorrect && boardComplete) { statusMessageElement.textContent = "Поздравляем! Судоку решено верно!"; statusMessageElement.className = 'correct'; stopTimer(); clearSelection(); hintButton.disabled = true; clearSavedGameState(); historyStack = []; updateUndoButtonState(); } else if (!allCorrect) { statusMessageElement.textContent = "Найдены ошибки."; statusMessageElement.className = 'incorrect-msg'; } else { statusMessageElement.textContent = "Пока верно, но не закончено."; statusMessageElement.className = ''; } });
     newGameButton.addEventListener('click', () => { console.log("New Game..."); stopTimer(); showDifficultyModal(); });
     if (undoButton) { undoButton.addEventListener('click', handleUndo); } else { console.error("Undo Btn?"); }
@@ -234,9 +281,22 @@ function hideDifficultyModal() {
         });
     } else { console.error("Hint Btn?"); }
 
-    if(modalButtonsContainer) { modalButtonsContainer.addEventListener('click', (event) => { const target = event.target.closest('button'); if(!target) return; if (target.classList.contains('difficulty-button')) { const difficulty = target.dataset.difficulty; if (difficulty) { console.log(`Difficulty chosen: ${difficulty}`); hideDifficultyModal(); clearSavedGameState(); historyStack = []; updateUndoButtonState(); setTimeout(() => initGame(difficulty), 50); } } else if (target.id === 'cancel-difficulty-button') { console.log("Cancel Difficulty."); hideDifficultyModal(); let isSolved = !userGrid.flat().some((cell, i) => !currentPuzzle?.[i] || (currentPuzzle[i] === '.' || currentPuzzle[i] === '0') && cell.value === 0); if (!isSolved) startTimer(); } }); } else { console.error("Modal Btns?"); }
-    if(modalOverlay) { modalOverlay.addEventListener('click', () => { console.log("Overlay Click."); hideDifficultyModal(); let isSolved = !userGrid.flat().some((cell, i) => !currentPuzzle?.[i] || (currentPuzzle[i] === '.' || currentPuzzle[i] === '0') && cell.value === 0); if (!isSolved) startTimer(); }); } else { console.error("Overlay?"); }
+    // Обработчик кликов в модальном окне
+    if(modalButtonsContainer) { modalButtonsContainer.addEventListener('click', (event) => { const target = event.target.closest('button'); if(!target) return; if (target.classList.contains('difficulty-button')) { const difficulty = target.dataset.difficulty; if (difficulty) { console.log(`Difficulty chosen: ${difficulty}`); hideDifficultyModal(); clearSavedGameState(); historyStack = []; updateUndoButtonState(); setTimeout(() => initGame(difficulty), 50); } } else if (target.id === 'cancel-difficulty-button') { console.log("Cancel Difficulty."); hideDifficultyModal(); /* resumeTimerIfNeeded() вызывается в hideDifficultyModal */ } }); } else { console.error("Modal Btns?"); }
+    // Обработчик клика по оверлею
+    if(modalOverlay) { modalOverlay.addEventListener('click', () => { console.log("Overlay Click."); hideDifficultyModal(); /* resumeTimerIfNeeded() вызывается в hideDifficultyModal */ }); } else { console.error("Overlay?"); }
+    // Обработчик клика по кнопке темы // << НОВОЕ
+    if (themeToggleButton) {
+        themeToggleButton.addEventListener('click', handleThemeToggle);
+    } else {
+        console.error("Theme Toggle Button not found!");
+    }
+
+    // Инициализация TG SDK
     try { if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); console.log("TG SDK init."); } else { console.log("TG SDK not found."); } } catch (e) { console.error("TG SDK Error:", e); }
+
+    // --- Загрузка темы ПЕРЕД первым запуском игры --- // << НОВОЕ
+    loadThemePreference();
 
     // --- Первый запуск игры ---
     const savedGame = loadGameState();
